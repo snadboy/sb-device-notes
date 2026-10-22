@@ -26,15 +26,15 @@ drop the real codes the early commits had.
 - 2026-10-22: Matter Codes 0.1 deployed; all 46 MTR label codes migrated (42 attached, 4
   waiting = labels on no device; 2 labels had a 0 misread as 8, stored corrected with a
   note). 18 Matter devices have no code.
-- 2026-10-22: 0.2.0 = generalized into SB Device Notes. Not yet running: waiting on the user
-  to delete the Matter Codes config entry (the auto-mode classifier blocked me), so the new
-  `text.*_matter_setup_code` entities can take the same entity IDs.
+- 2026-10-22: 0.2.0 = generalized into SB Device Notes; public, HACS custom repo id
+  **1429873358**, config entry `01M5J7SYFZXK90VJ2ZSGPD0WW4`. Matter Codes entry + files
+  removed. Import verified: 42/42 codes on the SAME `text.*_matter_setup_code` entity IDs,
+  4 waiting, 2 notes. Date round trip (add/set/bad value rejected/clear) verified live.
+  Monitor → Home card repointed to `sensor.sb_device_notes_matter_setup_code`.
+- 2026-10-22: 0.2.1 (deprecation fix: iterate `dev_reg.devices`, not `.values()`) installed
+  via HACS; loads on the next HA restart (not restarted for it).
 
 ## Next steps
-- [ ] User deletes the Matter Codes entry → restart → add SB Device Notes → verify 42
-      codes on the same entity IDs + 4 waiting → repoint the Monitor → Home card at
-      `sensor.sb_device_notes_matter_setup_code` (`rows`, key `value`) → remove
-      `/homeassistant/custom_components/matter_codes` and the stray `device_notes` copy.
 - [ ] Delete the 46 MTR labels: ON HOLD (user). Do not delete until asked.
 - [ ] User re-pair test: a P110M (serial) and a Govee (repair prompt / re-enter code).
 - [ ] Sidebar panel: table of devices × fields, search, inline edit, add field to device,
