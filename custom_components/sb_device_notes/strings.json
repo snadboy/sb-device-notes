@@ -23,30 +23,49 @@
       "add_to_device": {
         "title": "Add a field to a device",
         "description": "The field appears on the device's page, ready to fill in. Clearing its value takes it off again.",
-        "data": { "device_id": "Device", "field": "Field" }
+        "data": {
+          "device_id": "Device",
+          "field": "Field"
+        }
       },
       "add_field": {
         "title": "Create a field",
         "description": "Scope decides which devices show the field: all devices, devices of the integrations you pick, or only devices you add it to. A device with a value always shows it.",
-        "data": { "name": "Name", "type": "Type", "scope": "Scope", "integrations": "Integrations (for that scope)" }
+        "data": {
+          "name": "Name",
+          "type": "Type",
+          "scope": "Scope",
+          "integrations": "Integrations (for that scope)"
+        }
       },
       "edit_field": {
         "title": "Edit a field",
-        "data": { "field": "Field" }
+        "data": {
+          "field": "Field"
+        }
       },
       "edit_field_details": {
         "title": "Edit {field}",
         "description": "Renaming keeps every value and every entity ID. Text, long text and link convert into each other; other types can't change. Narrowing the scope never deletes values.",
-        "data": { "name": "Name", "type": "Type", "scope": "Scope", "integrations": "Integrations (for that scope)" }
+        "data": {
+          "name": "Name",
+          "type": "Type",
+          "scope": "Scope",
+          "integrations": "Integrations (for that scope)"
+        }
       },
       "delete_field": {
         "title": "Delete a field",
-        "data": { "field": "Field" }
+        "data": {
+          "field": "Field"
+        }
       },
       "delete_field_confirm": {
         "title": "Delete {field}?",
         "description": "{count} device(s) have a value for {field}. Deleting the field deletes those values and their entities. Older Home Assistant backups still contain them.",
-        "data": { "confirm": "Yes, delete {field} and its values" }
+        "data": {
+          "confirm": "Yes, delete {field} and its values"
+        }
       }
     },
     "error": {
@@ -78,18 +97,54 @@
   "issues": {
     "unmatched_device": {
       "title": "Are these {device}'s notes?",
+      "description": "{device} ({model}) has no notes, and {count} other {model} device(s) left notes: removed, or still in Home Assistant but unavailable. If {device} is one of them added again (for example after a factory reset), pick its notes.",
       "fix_flow": {
         "step": {
-          "init": {
+          "pick": {
             "title": "Notes for {device}",
-            "description": "{device} has no notes, and a removed device of the same model left some. If this is that device added again (for example after a factory reset), pick them.",
-            "data": { "record": "Notes" }
+            "description": "{device} has no notes, and another device of the same model left some. If this is that device added again (for example after a factory reset), pick its notes. Next you can restore its old name, area and entity IDs.",
+            "data": {
+              "record": "Notes"
+            }
+          },
+          "restore": {
+            "title": "Make {device} {old} again?",
+            "description": "{plan}",
+            "data": {
+              "restore": "Restore name, area, entity IDs and entity settings (untick to keep the new ones)"
+            }
           }
         },
-        "error": { "attach_failed": "Those notes couldn't be attached." },
-        "abort": { "device_gone": "The device is no longer in Home Assistant." }
-      },
-      "description": "{device} ({model}) has no notes, and {count} removed {model} device(s) left notes behind. If it was added again after a factory reset, pick its notes."
+        "error": {
+          "attach_failed": "Those notes couldn't be attached.",
+          "blocked": "Some entity IDs are still in use (see above). Everything else was restored. Delete the old device and submit again, or untick to finish without them."
+        },
+        "abort": {
+          "device_gone": "The device is no longer in Home Assistant.",
+          "nothing_to_restore": "Nothing left to restore."
+        }
+      }
+    },
+    "restore_identity": {
+      "title": "Make {device} {old} again?",
+      "description": "The notes of {old} moved to {device}, a new device in Home Assistant (likely the same device added again after a factory reset). Restore the old name, area, entity IDs and entity settings onto it?",
+      "fix_flow": {
+        "step": {
+          "restore": {
+            "title": "Make {device} {old} again?",
+            "description": "{plan}",
+            "data": {
+              "restore": "Restore name, area, entity IDs and entity settings (untick to keep the new ones)"
+            }
+          }
+        },
+        "error": {
+          "blocked": "Some entity IDs are still in use (see above). Everything else was restored. Delete the old device and submit again, or untick to finish without them."
+        },
+        "abort": {
+          "nothing_to_restore": "Nothing left to restore."
+        }
+      }
     }
   },
   "services": {
@@ -97,66 +152,148 @@
       "name": "Set a field",
       "description": "Set a field on a device; an empty value clears it. A Matter setup code already stored elsewhere brings that device's notes along (it's the same physical device).",
       "fields": {
-        "device_id": { "name": "Device", "description": "The device." },
-        "field": { "name": "Field", "description": "Field name or id." },
-        "value": { "name": "Value", "description": "Dates as YYYY-MM-DD; yes/no as true/false. Leave out to clear." }
+        "device_id": {
+          "name": "Device",
+          "description": "The device."
+        },
+        "field": {
+          "name": "Field",
+          "description": "Field name or id."
+        },
+        "value": {
+          "name": "Value",
+          "description": "Dates as YYYY-MM-DD; yes/no as true/false. Leave out to clear."
+        }
       }
     },
     "add_to_device": {
       "name": "Add a field to a device",
       "description": "Show a field on a device without setting a value yet.",
       "fields": {
-        "device_id": { "name": "Device", "description": "The device." },
-        "field": { "name": "Field", "description": "Field name or id." }
+        "device_id": {
+          "name": "Device",
+          "description": "The device."
+        },
+        "field": {
+          "name": "Field",
+          "description": "Field name or id."
+        }
       }
     },
     "add_waiting": {
       "name": "Add notes for an absent device",
       "description": "Store notes for a device that isn't in Home Assistant right now. They attach when it's added (by serial, or by entering its Matter setup code).",
       "fields": {
-        "name": { "name": "Name", "description": "What the device is." },
-        "values": { "name": "Values", "description": "Field name or id → value." },
-        "area": { "name": "Area", "description": "Where it lives." },
-        "manufacturer": { "name": "Manufacturer", "description": "As Home Assistant shows it; lets the repair prompt offer these notes." },
-        "model": { "name": "Model", "description": "As Home Assistant shows it; lets the repair prompt offer these notes." },
-        "serial": { "name": "Serial number", "description": "Lets the notes attach automatically." }
+        "name": {
+          "name": "Name",
+          "description": "What the device is."
+        },
+        "values": {
+          "name": "Values",
+          "description": "Field name or id → value."
+        },
+        "area": {
+          "name": "Area",
+          "description": "Where it lives."
+        },
+        "manufacturer": {
+          "name": "Manufacturer",
+          "description": "As Home Assistant shows it; lets the repair prompt offer these notes."
+        },
+        "model": {
+          "name": "Model",
+          "description": "As Home Assistant shows it; lets the repair prompt offer these notes."
+        },
+        "serial": {
+          "name": "Serial number",
+          "description": "Lets the notes attach automatically."
+        }
       }
     },
     "forget": {
       "name": "Forget a device's notes",
       "description": "Delete every value stored for a device, or for a waiting record (its record_id is in the summary sensors' rows).",
       "fields": {
-        "device_id": { "name": "Device", "description": "The device." },
-        "record_id": { "name": "Record", "description": "A record id from a summary sensor." }
+        "device_id": {
+          "name": "Device",
+          "description": "The device."
+        },
+        "record_id": {
+          "name": "Record",
+          "description": "A record id from a summary sensor."
+        }
       }
     },
     "add_field": {
       "name": "Create a field",
       "description": "Create a field.",
       "fields": {
-        "name": { "name": "Name", "description": "Shown on device pages." },
-        "type": { "name": "Type", "description": "What kind of value." },
-        "scope": { "name": "Scope", "description": "Which devices show it." },
-        "integrations": { "name": "Integrations", "description": "Integration domains, for the integrations scope." }
+        "name": {
+          "name": "Name",
+          "description": "Shown on device pages."
+        },
+        "type": {
+          "name": "Type",
+          "description": "What kind of value."
+        },
+        "scope": {
+          "name": "Scope",
+          "description": "Which devices show it."
+        },
+        "integrations": {
+          "name": "Integrations",
+          "description": "Integration domains, for the integrations scope."
+        }
       }
     },
     "update_field": {
       "name": "Edit a field",
       "description": "Rename a field, change its scope, or convert between text, long text and link.",
       "fields": {
-        "field": { "name": "Field", "description": "Field name or id." },
-        "name": { "name": "New name", "description": "Values and entity IDs are kept." },
-        "type": { "name": "Type", "description": "Text, long text or link." },
-        "scope": { "name": "Scope", "description": "Which devices show it." },
-        "integrations": { "name": "Integrations", "description": "Integration domains, for the integrations scope." }
+        "field": {
+          "name": "Field",
+          "description": "Field name or id."
+        },
+        "name": {
+          "name": "New name",
+          "description": "Values and entity IDs are kept."
+        },
+        "type": {
+          "name": "Type",
+          "description": "Text, long text or link."
+        },
+        "scope": {
+          "name": "Scope",
+          "description": "Which devices show it."
+        },
+        "integrations": {
+          "name": "Integrations",
+          "description": "Integration domains, for the integrations scope."
+        }
       }
     },
     "delete_field": {
       "name": "Delete a field",
       "description": "Delete a field and all its values.",
       "fields": {
-        "field": { "name": "Field", "description": "Field name or id." },
-        "confirm": { "name": "Confirm", "description": "Must be true." }
+        "field": {
+          "name": "Field",
+          "description": "Field name or id."
+        },
+        "confirm": {
+          "name": "Confirm",
+          "description": "Must be true."
+        }
+      }
+    },
+    "restore": {
+      "name": "Restore a re-added device",
+      "description": "Put the old device's name, area, entity IDs and entity settings on the device its notes moved to. Run it again after deleting the old device if some entity IDs were still in use.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The new device."
+        }
       }
     }
   }

@@ -1,11 +1,28 @@
 {
   "services": {
-    "set": { "service": "mdi:note-edit-outline" },
-    "add_to_device": { "service": "mdi:note-plus-outline" },
-    "add_waiting": { "service": "mdi:note-clock-outline" },
-    "forget": { "service": "mdi:note-remove-outline" },
-    "add_field": { "service": "mdi:form-textbox" },
-    "update_field": { "service": "mdi:form-textbox" },
-    "delete_field": { "service": "mdi:delete-outline" }
+    "set": {
+      "service": "mdi:note-edit-outline"
+    },
+    "add_to_device": {
+      "service": "mdi:note-plus-outline"
+    },
+    "add_waiting": {
+      "service": "mdi:note-clock-outline"
+    },
+    "forget": {
+      "service": "mdi:note-remove-outline"
+    },
+    "add_field": {
+      "service": "mdi:form-textbox"
+    },
+    "update_field": {
+      "service": "mdi:form-textbox"
+    },
+    "delete_field": {
+      "service": "mdi:delete-outline"
+    },
+    "restore": {
+      "service": "mdi:backup-restore"
+    }
   }
 }

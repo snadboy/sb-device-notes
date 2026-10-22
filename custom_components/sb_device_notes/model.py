@@ -89,6 +89,7 @@ class Device:
     serial: str | None = None
     connections: frozenset[tuple[str, str]] = field(default_factory=frozenset)
     integration: str | None = None
+    area_id: str | None = None
 
 
 def _now() -> str:
@@ -157,6 +158,68 @@ def display(ftype: str, value: Any) -> str | None:
 def code_identity(value: str) -> str:
     """The manual code a stored Matter value stands for (QR and manual forms compare equal)."""
     return parse_code(value).manual
+
+
+
+# ---- identity: what a device was called, so a re-paired one can be restored ---------
+#
+# A record's "identity" is a snapshot of the HA device it belongs to: device name and
+# area, and for each entity its entity ID and the user's settings. It follows the device
+# while the record stays on it. When the record moves to a different HA device (a
+# re-pair), the identity stays put: that's the "restore pending" state, until the user
+# restores it onto the new device or declines.
+#
+# Entities are matched across devices by key: platform, domain, translation key and
+# original name, plus an index among entities sharing those (ordered by unique_id).
+# Unique IDs themselves change on re-pairing, so they can't be the key.
+
+
+def assign_keys(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Add "key" to each entry dict (platform, domain, translation_key, original_name, unique_id)."""
+    seen: Counter[str] = Counter()
+    out = []
+    for e in sorted(entries, key=lambda e: str(e.get("unique_id"))):
+        base = "|".join(
+            str(e.get(k) or "") for k in ("platform", "domain", "translation_key", "original_name")
+        )
+        out.append({**e, "key": f"{base}|{seen[base]}"})
+        seen[base] += 1
+    return out
+
+
+def merge_entities(old: list[dict[str, Any]], new: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """New snapshot entries replace old ones with the same key; old ones not seen now are
+    kept (an entity removed moments before its device must not drop out of the snapshot)."""
+    merged = {e["key"]: e for e in old}
+    merged.update({e["key"]: e for e in new})
+    return sorted(merged.values(), key=lambda e: e["key"])
+
+
+def plan_restore(
+    snapshot: list[dict[str, Any]],
+    current: list[dict[str, Any]],
+    holder: Any,
+) -> dict[str, list]:
+    """Match a snapshot onto a device's current entities.
+
+    `current`: dicts with key and entity_id. `holder(entity_id)`: who else holds an
+    entity ID (an entity ID string) or None if it's free.
+    Returns renames [(current_id, target_id, snap)], keep [(current_id, snap)] (already
+    right), blocked [(current_id, target_id, held_by)], missing [snap] (no such entity now).
+    """
+    by_key = {e["key"]: e for e in current}
+    plan: dict[str, list] = {"renames": [], "keep": [], "blocked": [], "missing": []}
+    for snap in snapshot:
+        cur = by_key.get(snap["key"])
+        if cur is None:
+            plan["missing"].append(snap)
+        elif cur["entity_id"] == snap["entity_id"]:
+            plan["keep"].append((cur["entity_id"], snap))
+        elif (held := holder(snap["entity_id"])) and held != cur["entity_id"]:
+            plan["blocked"].append((cur["entity_id"], snap["entity_id"], held))
+        else:
+            plan["renames"].append((cur["entity_id"], snap["entity_id"], snap))
+    return plan
 
 
 # ---- the notebook ------------------------------------------------------------------
@@ -323,6 +386,7 @@ class Notebook:
             "connections": [],
             "values": {},
             "picked": [],
+            "identity": None,
             "updated": _now(),
         }
         self.records[rid] = rec
@@ -456,7 +520,7 @@ class Notebook:
         del self.records[rid]
 
     def attach(self, rid: str, device: Device) -> None:
-        """Attach a waiting record to a device (repair flow)."""
+        """Attach a record to a device (repair flow); it may come off an unavailable old device."""
         rec = self.records[rid]
         if mine := self.for_device(device.id):
             if mine[0] == rid:
@@ -510,24 +574,75 @@ class Notebook:
             changed = True
         return changed
 
-    def candidates(self, device: Device) -> list[tuple[str, dict[str, Any]]]:
-        """Waiting records that could belong to `device`: same maker and model. A device
-        reporting neither matches nothing (blank = blank says nothing)."""
+    def candidates(
+        self, device: Device, unavailable: frozenset[str] | set[str] = frozenset()
+    ) -> list[tuple[str, dict[str, Any]]]:
+        """Records that could belong to `device`: same maker and model, and either waiting
+        or still on an old device that is unavailable (paired again before the old one was
+        deleted). A device reporting neither maker nor model matches nothing."""
         if not (device.manufacturer and device.model):
             return []
         return [
             (rid, r)
-            for rid, r in self.waiting()
-            if r.get("manufacturer") == device.manufacturer and r.get("model") == device.model
+            for rid, r in self.records.items()
+            if (r["device_id"] is None or (r["device_id"] in unavailable and r["device_id"] != device.id))
+            and r.get("manufacturer") == device.manufacturer
+            and r.get("model") == device.model
         ]
 
-    def unmatched(self, devices: list[Device]) -> list[Device]:
-        """Devices with no record where a waiting record of the same model might be theirs."""
+    def unmatched(
+        self, devices: list[Device], unavailable: frozenset[str] | set[str] = frozenset()
+    ) -> list[Device]:
+        """Devices with no record where another device's record might be theirs."""
         return [
             d
             for d in devices
-            if d.id not in self.dismissed and self.for_device(d.id) is None and self.candidates(d)
+            if d.id not in self.dismissed
+            and d.id not in unavailable
+            and self.for_device(d.id) is None
+            and self.candidates(d, unavailable)
         ]
+
+    # ---- identity ---------------------------------------------------------------------
+
+    def restore_pending(self, rid: str) -> bool:
+        """The record moved to a new HA device and its old identity hasn't been applied."""
+        rec = self.records[rid]
+        ident = rec.get("identity")
+        return bool(
+            rec["device_id"] and ident and ident.get("device_id") and ident["device_id"] != rec["device_id"]
+        )
+
+    def pending_restores(self) -> list[str]:
+        return [rid for rid in self.records if self.restore_pending(rid)]
+
+    def update_identity(
+        self, rid: str, device: Device, entities: list[dict[str, Any]]
+    ) -> bool:
+        """Refresh a record's identity from its current device, unless a restore is
+        pending (then the identity describes the old device and must stay)."""
+        rec = self.records[rid]
+        if rec["device_id"] != device.id or self.restore_pending(rid):
+            return False
+        old = rec.get("identity") or {}
+        new = {
+            "device_id": device.id,
+            "name": device.name,
+            "area_id": device.area_id,
+            "area": device.area,
+            "entities": merge_entities(old.get("entities", []) if old.get("device_id") == device.id else [], entities),
+        }
+        if new == old:
+            return False
+        rec["identity"] = new
+        return True
+
+    def settle_identity(self, rid: str) -> None:
+        """Restored or declined: the identity now follows the record's current device."""
+        rec = self.records[rid]
+        if rec.get("identity"):
+            rec["identity"]["device_id"] = rec["device_id"]
+            rec["identity"]["entities"] = []
 
     def summary(self, rec: dict[str, Any]) -> str:
         """One line naming a record's values, for pick lists."""
@@ -610,6 +725,7 @@ def new_notebook(legacy: dict[str, Any] | None = None) -> Notebook:
                 "connections": [],
                 "values": values,
                 "picked": [],
+                "identity": None,
                 "updated": old.get("updated") or _now(),
             }
         nb.dismissed = set(legacy.get("dismissed") or ())

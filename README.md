@@ -38,6 +38,20 @@ same serial or connection, they re-attach. For devices that report neither (Gove
 Shelly), a Repairs prompt offers same-model waiting notes; or enter the device's Matter
 setup code, which brings its notes along (one code, one physical device).
 
+## Restoring a re-added device
+
+While a device has notes, SB Device Notes keeps a snapshot of it: name, area, and each
+entity's ID, custom name, icon, area, labels, aliases, hidden/disabled choice and voice
+exposure. When the notes move to a new HA device (picked in Repairs, matched by serial or
+MAC, or a Matter code entered on it), Repairs offers **"Make <new> <old> again?"**, with a
+preview, to put all of that back. Entities are matched by what they are (platform, kind,
+translation key, name), since their unique IDs change on re-pairing; anything without a
+match is listed, never guessed.
+
+If the device is paired again before the old one is deleted, the old one shows as
+*unavailable, still in HA* in the pick list, and entity IDs it still holds are listed as
+"still in use": delete the old device and submit again (or run `sb_device_notes.restore`).
+
 ## Lists
 
 Each field has a summary sensor, `sensor.sb_device_notes_<field>` (state: how many devices
@@ -53,6 +67,7 @@ list of that field.
 | `sb_device_notes.set` | `device_id`, `field` (name or id), `value`; no value clears |
 | `sb_device_notes.add_to_device` | Show a field on a device without a value yet |
 | `sb_device_notes.add_waiting` | Notes for a device not in HA right now (`name`, `values`, optional `manufacturer`, `model`, `area`, `serial`) |
+| `sb_device_notes.restore` | Restore a re-added device's old name, area and entity IDs |
 | `sb_device_notes.forget` | Delete a device's (or a waiting record's) notes |
 | `sb_device_notes.add_field` / `update_field` / `delete_field` | Manage fields from scripts (`delete_field` needs `confirm: true`) |
 

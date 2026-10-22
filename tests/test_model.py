@@ -206,6 +206,80 @@ def test_legacy_import():
     assert n2.records == n.records and n2.fields == n.fields
 
 
+def _ents(device_slug, *, translated=("firmware",), identify=2):
+    """Registry-like entries for a lamp: a light, firmware update, identify buttons."""
+    out = [{"platform": "matter", "domain": "light", "translation_key": None, "original_name": None,
+            "unique_id": f"{device_slug}-light", "entity_id": f"light.{device_slug}"}]
+    for t in translated:
+        out.append({"platform": "matter", "domain": "update", "translation_key": t, "original_name": "Firmware",
+                    "unique_id": f"{device_slug}-{t}", "entity_id": f"update.{device_slug}_{t}"})
+    for i in range(identify):
+        out.append({"platform": "matter", "domain": "button", "translation_key": "identify", "original_name": "Identify",
+                    "unique_id": f"{device_slug}-identify-{i}", "entity_id": f"button.{device_slug}_identify_{i}"})
+    return M.assign_keys(out)
+
+
+def test_keys_ignore_unique_ids_but_count_duplicates():
+    old, new = _ents("closet"), _ents("h607c")
+    assert [e["key"] for e in old] == [e["key"] for e in new]
+    assert sum(e["key"].endswith("|1") for e in old) == 1  # the second Identify
+
+
+def test_plan_restore():
+    old, new = _ents("closet"), _ents("h607c", identify=1)
+    taken = {"light.closet": None, "update.closet_firmware": "update.closet_firmware"}
+    plan = M.plan_restore(old, new, lambda eid: taken.get(eid))
+    assert [(a, b) for a, b, _ in plan["renames"]] == [
+        ("button.h607c_identify_0", "button.closet_identify_0"),
+        ("light.h607c", "light.closet"),
+    ]
+    assert plan["blocked"] == [("update.h607c_firmware", "update.closet_firmware", "update.closet_firmware")]
+    assert [s["entity_id"] for s in plan["missing"]] == ["button.closet_identify_1"]
+    # already restored: the light holds its own target ID, which isn't "blocked"
+    light = next(e for e in new if e["domain"] == "light")
+    again = M.plan_restore(old, [dict(light, entity_id="light.closet")], lambda eid: eid if eid == "light.closet" else None)
+    assert [k for k, _ in again["keep"]] == ["light.closet"] and again["blocked"] == []
+
+
+def test_merge_keeps_entities_that_vanished():
+    old = _ents("closet")
+    assert len(M.merge_entities(old, old[:1])) == len(old)
+
+
+def test_identity_follows_device_until_repair():
+    n = nb()
+    n.set_value(LAMP, CODE, B)
+    rid = n.for_device("d2")[0]
+    assert n.update_identity(rid, LAMP, _ents("closet")) is True
+    assert n.update_identity(rid, LAMP, _ents("closet")) is False
+    assert not n.restore_pending(rid)
+    n.reconcile([LAMP_NEW])  # old device deleted
+    n.set_value(LAMP_NEW, CODE, B)  # code entered on the re-paired lamp
+    assert n.restore_pending(rid) and n.pending_restores() == [rid]
+    ident = n.records[rid]["identity"]
+    assert ident["device_id"] == "d2" and ident["name"] == "Floor Lamp East"
+    assert n.update_identity(rid, LAMP_NEW, _ents("h607c")) is False  # pending: identity frozen
+    n.settle_identity(rid)
+    assert not n.restore_pending(rid)
+    assert n.update_identity(rid, LAMP_NEW, _ents("h607c")) is True
+    assert n.records[rid]["identity"]["name"] == "H607C"
+
+
+def test_unavailable_old_device_is_a_candidate():
+    n = nb()
+    n.set_value(LAMP, CODE, B)
+    rid = n.for_device("d2")[0]
+    assert n.unmatched([LAMP, LAMP_NEW]) == []  # old lamp fine: nothing offered
+    assert [d.id for d in n.unmatched([LAMP, LAMP_NEW], {"d2"})] == ["d8"]
+    assert [r for r, _ in n.candidates(LAMP_NEW, {"d2"})] == [rid]
+    n.update_identity(rid, LAMP, _ents("closet"))
+    n.attach(rid, LAMP_NEW)
+    assert n.for_device("d8")[0] == rid and n.for_device("d2") is None
+    assert n.restore_pending(rid)
+    n.reconcile([LAMP, LAMP_NEW])  # old device still there: the record stays on the new one
+    assert n.for_device("d8")[0] == rid
+
+
 if __name__ == "__main__":
     n = 0
     for name, fn in list(globals().items()):

@@ -60,6 +60,7 @@ UPDATE_FIELD_SCHEMA = vol.Schema(
         vol.Optional("integrations"): vol.All(cv.ensure_list, [cv.string]),
     }
 )
+RESTORE_SCHEMA = vol.Schema({vol.Required("device_id"): cv.string})
 DELETE_FIELD_SCHEMA = vol.Schema({vol.Required("field"): cv.string, vol.Required("confirm"): cv.boolean})
 
 
@@ -117,6 +118,18 @@ def _forget(manager: NotesManager, call: ServiceCall) -> None:
         book.forget(found[0])
 
 
+def _restore(manager: NotesManager, call: ServiceCall) -> None:
+    found = manager.book.for_device(call.data["device_id"])
+    if not found or not manager.book.restore_pending(found[0]):
+        raise NoteError("Nothing to restore on that device")
+    plan = manager.restore(found[0])
+    if plan["blocked"]:
+        held = ", ".join(target for _, target, _ in plan["blocked"])
+        raise NoteError(
+            f"Restored what was free; still in use: {held}. Delete the old device and run this again."
+        )
+
+
 def _add_field(manager: NotesManager, call: ServiceCall) -> None:
     d = call.data
     manager.book.add_field(d["name"], d["type"], d["scope"], d["integrations"])
@@ -146,6 +159,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         ("add_to_device", _pick, PICK_SCHEMA),
         ("add_waiting", _add_waiting, ADD_WAITING_SCHEMA),
         ("forget", _forget, FORGET_SCHEMA),
+        ("restore", _restore, RESTORE_SCHEMA),
         ("add_field", _add_field, ADD_FIELD_SCHEMA),
         ("update_field", _update_field, UPDATE_FIELD_SCHEMA),
         ("delete_field", _delete_field, DELETE_FIELD_SCHEMA),

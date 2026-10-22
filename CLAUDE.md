@@ -34,6 +34,15 @@ drop the real codes the early commits had.
 - 2026-10-22: 0.2.1 (deprecation fix: iterate `dev_reg.devices`, not `.values()`) installed
   via HACS; loads on the next HA restart (not restarted for it).
 
+- 2026-10-22: Re-pair test (Floor Lamp Office Closet H607C, Govee, no serial): code followed
+  via Repairs once the old device was deleted. Found + fixed in 0.2.2: repair flow opened with
+  `{}` (KeyError → 500); blank maker/model matched other blanks (esp32/crowpanel prompts).
+- 2026-10-22: 0.3.0: identity snapshot per record (device name/area + entity IDs/settings/
+  exposure, keyed by platform|domain|translation_key|original_name|n) and a restore step in
+  Repairs (+ `restore_<record>` issue, `sb_device_notes.restore`). Unavailable same-model
+  devices are now candidates (pair-before-delete). Snapshot capture verified live (42
+  records); the restore apply path is NOT yet exercised live: first real re-pair will be.
+
 ## Next steps
 - [ ] Delete the 46 MTR labels: ON HOLD (user). Do not delete until asked.
 - [ ] User re-pair test: a P110M (serial) and a Govee (repair prompt / re-enter code).

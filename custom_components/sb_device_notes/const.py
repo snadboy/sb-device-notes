@@ -10,4 +10,5 @@ LEGACY_STORAGE_KEY = "matter_codes"  # Matter Codes 0.1, imported on first run
 SIGNAL_UPDATED = f"{DOMAIN}_updated"
 
 ISSUE_PREFIX = "unmatched_"
+RESTORE_PREFIX = "restore_"
 SUMMARY_PREFIX = "summary__"

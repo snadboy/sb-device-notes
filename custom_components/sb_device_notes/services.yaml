@@ -55,6 +55,12 @@ forget:
     record_id:
       selector:
         text:
+restore:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
 add_field:
   fields:
     name:
