@@ -1,0 +1,18 @@
+{
+  "domain": "sb_device_notes",
+  "name": "SB Device Notes",
+  "codeowners": [
+    "@snadboy"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "repairs"
+  ],
+  "documentation": "https://github.com/snadboy/sb-device-notes",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/snadboy/sb-device-notes/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.2.0"
+}

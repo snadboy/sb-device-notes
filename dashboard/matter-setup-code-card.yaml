@@ -1,0 +1,37 @@
+# Markdown card listing every Matter setup code (SB Device Notes' "Matter setup code" field).
+# Dashboard → edit → add card → Manual, paste this. Works for any field: change the sensor.
+type: markdown
+title: Matter setup codes
+content: |-
+  {%- set rows = state_attr('sensor.sb_device_notes_matter_setup_code', 'rows') or [] -%}
+  {%- set waiting = rows | selectattr('status', 'eq', 'waiting') | list -%}
+  {%- set missing = rows | selectattr('status', 'eq', 'missing') | list -%}
+  {%- set attached = rows | selectattr('status', 'eq', 'attached') | list -%}
+  {%- if waiting %}
+  ### ⏳ Waiting for re-pair ({{ waiting | count }})
+  | Device | Area | Code |
+  |:--|:--|:--|
+  {% for r in waiting -%}
+  | {{ r.name or '?' }}{{ ' · ' ~ r.model if r.model }} | {{ r.area or '' }} | **{{ r.value }}** |
+  {% endfor %}
+  {%- endif %}
+  {#- rows arrive sorted by area; a heading wherever the area changes (groupby can't sort None) #}
+  {%- set ns = namespace(area='-') %}
+  {%- for r in attached %}
+  {%- if r.area != ns.area %}{% set ns.area = r.area %}
+
+  ### {{ r.area or 'No area' }}
+  | Device | Code |
+  |:--|:--|
+  {% endif -%}
+  | {{ r.name }} | **{{ r.value }}** |
+  {% endfor %}
+  {%- if missing %}
+
+  ### ⚠️ No code stored ({{ missing | count }})
+  | Device | Area | Model |
+  |:--|:--|:--|
+  {% for r in missing -%}
+  | {{ r.name }} | {{ r.area or '' }} | {{ r.model or '' }} |
+  {% endfor %}
+  {%- endif %}
