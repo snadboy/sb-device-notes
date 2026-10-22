@@ -70,7 +70,7 @@ class NotesManager:
         dev_reg = dr.async_get(self.hass)
         area_reg = ar.async_get(self.hass)
         found: dict[str, Device] = {}
-        for dev in dev_reg.devices.values():
+        for dev in dev_reg.devices:  # iterates entries in HA 2026.10+
             if dev.entry_type is dr.DeviceEntryType.SERVICE:
                 continue
             entry = self.hass.config_entries.async_get_entry(dev.config_entry_id)
