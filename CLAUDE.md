@@ -41,7 +41,11 @@ drop the real codes the early commits had.
   exposure, keyed by platform|domain|translation_key|original_name|n) and a restore step in
   Repairs (+ `restore_<record>` issue, `sb_device_notes.restore`). Unavailable same-model
   devices are now candidates (pair-before-delete). Snapshot capture verified live (42
-  records); the restore apply path is NOT yet exercised live: first real re-pair will be.
+  records). First live restore 2026-10-22 (Floor Lamp Office East H607C): name, area, all
+  entity IDs, group membership and Assist exposure came back. Gotchas seen: (1) the restore
+  dialog rendered blank: the browser held pre-0.3.0 translations (server served them fine,
+  checked with `frontend/get_translations`); a refresh fixes it. (2) The old lamp had two
+  Identify buttons, the new one one: it took the first old key's ID (`…_identify_1`).
 
 ## Next steps
 - [ ] Delete the 46 MTR labels: ON HOLD (user). Do not delete until asked.
