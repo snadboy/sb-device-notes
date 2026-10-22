@@ -511,7 +511,10 @@ class Notebook:
         return changed
 
     def candidates(self, device: Device) -> list[tuple[str, dict[str, Any]]]:
-        """Waiting records that could belong to `device`: same maker and model."""
+        """Waiting records that could belong to `device`: same maker and model. A device
+        reporting neither matches nothing (blank = blank says nothing)."""
+        if not (device.manufacturer and device.model):
+            return []
         return [
             (rid, r)
             for rid, r in self.waiting()

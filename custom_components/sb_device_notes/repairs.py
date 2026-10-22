@@ -39,7 +39,8 @@ class UnmatchedDeviceFlow(RepairsFlow):
         book = self._manager.book
         errors: dict[str, str] = {}
 
-        if user_input is not None:
+        # The repairs manager opens the flow with an empty dict, not None.
+        if user_input and "record" in user_input:
             choice = user_input["record"]
             try:
                 if choice == NEW_DEVICE:

@@ -161,6 +161,16 @@ def test_repair_attach_and_dismiss():
     assert n.summary(n.records[rid]) == "0298-200-7398 · Notes: x"
 
 
+def test_blank_maker_and_model_match_nothing():
+    n = nb()
+    n.add_waiting("Unknown device", {CODE: A})
+    esp = M.Device("d4", "esp32s3", None, None, None, None, integration="esphome")
+    assert n.candidates(esp) == [] and n.unmatched([esp]) == []
+    half = M.Device("d5", "x", None, "Govee", None, None)
+    n.add_waiting("lamp", {CODE: G}, manufacturer="Govee")
+    assert n.candidates(half) == []
+
+
 def test_add_waiting_rejects_duplicates():
     n = nb()
     n.add_waiting("x", {"Matter setup code": A})
