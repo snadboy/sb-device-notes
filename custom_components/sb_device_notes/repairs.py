@@ -53,10 +53,17 @@ def describe_plan(manager: NotesManager, rid: str) -> tuple[str, bool]:
             lines.append(f"- … and {len(renames) - _MAX_LINES} more")
     if plan["keep"]:
         lines.append(f"Already right: {len(plan['keep'])} entity ID(s); their settings are restored too.")
+    exposed = sorted(
+        target
+        for target, snap in [(t, sn) for _, t, sn in renames] + [(c, sn) for c, sn in plan["keep"]]
+        if any(snap["expose"].values())
+    )
+    if exposed:
+        lines.append("**Voice exposure comes back for:** " + ", ".join(f"`{e}`" for e in exposed))
     if plan["blocked"]:
         lines.append(f"**Still in use, can't take yet ({len(plan['blocked'])}):**")
         lines += [f"- `{target}` (held by `{held}`)" for _, target, held in plan["blocked"][:_MAX_LINES]]
-        if plan["old_device_id"]:
+        if plan["old_device_id"] and plan["old_device_id"] != rec["device_id"]:
             lines.append(
                 f"The old device is still in Home Assistant: [open it](/config/devices/device/{plan['old_device_id']}), "
                 "delete it, then submit again to finish."

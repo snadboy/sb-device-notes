@@ -48,6 +48,11 @@ preview, to put all of that back. Entities are matched by what they are (platfor
 translation key, name), since their unique IDs change on re-pairing; anything without a
 match is listed, never guessed.
 
+Devices that report a serial number usually come back as the *same* HA device (HA revives
+it by serial, with its name and area), but with new entities whose settings are back to
+defaults. When all of a device's entities reappear with new unique IDs, Repairs offers
+**"Restore <device>'s entity settings?"** from the snapshot taken before.
+
 If the device is paired again before the old one is deleted, the old one shows as
 *unavailable, still in HA* in the pick list, and entity IDs it still holds are listed as
 "still in use": delete the old device and submit again (or run `sb_device_notes.restore`).

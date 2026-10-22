@@ -145,6 +145,27 @@
           "nothing_to_restore": "Nothing left to restore."
         }
       }
+    },
+    "restore_settings": {
+      "title": "Restore {device}'s entity settings?",
+      "description": "{device} was paired again: Home Assistant kept the device but created its entities anew, so their settings (voice exposure, custom names and icons, labels, hidden/disabled) are back to defaults. Restore them from before?",
+      "fix_flow": {
+        "step": {
+          "restore": {
+            "title": "Restore {device}'s entity settings?",
+            "description": "{plan}",
+            "data": {
+              "restore": "Restore entity settings (untick to keep the defaults)"
+            }
+          }
+        },
+        "error": {
+          "blocked": "Some entity IDs are still in use (see above). Everything else was restored. Submit again once they're free, or untick to finish without them."
+        },
+        "abort": {
+          "nothing_to_restore": "Nothing left to restore."
+        }
+      }
     }
   },
   "services": {

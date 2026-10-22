@@ -294,7 +294,7 @@ class NotesManager:
                 is_fixable=True,
                 is_persistent=False,
                 severity=ir.IssueSeverity.WARNING,
-                translation_key="restore_identity",
+                translation_key="restore_settings" if self.book.same_device_restore(rid) else "restore_identity",
                 translation_placeholders={
                     "old": rec["identity"].get("name") or "?",
                     "device": self.devices[rec["device_id"]].name if rec["device_id"] in self.devices else "?",

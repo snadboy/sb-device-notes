@@ -47,6 +47,12 @@ drop the real codes the early commits had.
   checked with `frontend/get_translations`); a refresh fixes it. (2) The old lamp had two
   Identify buttons, the new one one: it took the first old key's ID (`…_identify_1`).
 
+- 2026-10-22: Serial-device re-pair (Shelf Power P110M): HA revived the SAME device ID by
+  serial (name, area, entity IDs back) but entities were new (node C2), so entity settings
+  reset and 0.3.0 saw nothing to restore and overwrote the snapshot. 0.3.1: `reissued()`
+  (≥ half of matched entity keys have new unique IDs) → keep snapshot, `identity.repaired`,
+  issue `restore_settings`. Shelf Power's own pre-repair snapshot was already lost.
+
 ## Next steps
 - [ ] Delete the 46 MTR labels: ON HOLD (user). Do not delete until asked.
 - [ ] User re-pair test: a P110M (serial) and a Govee (repair prompt / re-enter code).

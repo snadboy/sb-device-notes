@@ -187,6 +187,23 @@ def assign_keys(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+OWN_PLATFORM = "sb_device_notes"  # our entities' unique IDs are per HA device, so they don't move
+
+
+def reissued(old: list[dict[str, Any]], new: list[dict[str, Any]]) -> bool:
+    """True when a device's entities came back with new unique IDs: the same HA device
+    was paired again (HA revives a deleted device by serial number, but its entities are
+    new and have lost their settings)."""
+    before = {e["key"]: e["unique_id"] for e in old if e.get("platform") != OWN_PLATFORM}
+    matched = changed = 0
+    for e in new:
+        if e.get("platform") == OWN_PLATFORM or e["key"] not in before:
+            continue
+        matched += 1
+        changed += before[e["key"]] != e["unique_id"]
+    return changed > 0 and changed * 2 >= matched
+
+
 def merge_entities(old: list[dict[str, Any]], new: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """New snapshot entries replace old ones with the same key; old ones not seen now are
     kept (an entity removed moments before its device must not drop out of the snapshot)."""
@@ -609,9 +626,14 @@ class Notebook:
         """The record moved to a new HA device and its old identity hasn't been applied."""
         rec = self.records[rid]
         ident = rec.get("identity")
-        return bool(
-            rec["device_id"] and ident and ident.get("device_id") and ident["device_id"] != rec["device_id"]
-        )
+        if not (rec["device_id"] and ident and ident.get("device_id")):
+            return False
+        return ident["device_id"] != rec["device_id"] or bool(ident.get("repaired"))
+
+    def same_device_restore(self, rid: str) -> bool:
+        """Pending, and on the same HA device (only the entities were re-created)."""
+        ident = self.records[rid].get("identity") or {}
+        return bool(ident.get("repaired")) and ident.get("device_id") == self.records[rid]["device_id"]
 
     def pending_restores(self) -> list[str]:
         return [rid for rid in self.records if self.restore_pending(rid)]
@@ -625,6 +647,9 @@ class Notebook:
         if rec["device_id"] != device.id or self.restore_pending(rid):
             return False
         old = rec.get("identity") or {}
+        if old.get("device_id") == device.id and reissued(old.get("entities", []), entities):
+            old["repaired"] = True  # keep the old snapshot; offer to restore it
+            return True
         new = {
             "device_id": device.id,
             "name": device.name,
@@ -643,6 +668,7 @@ class Notebook:
         if rec.get("identity"):
             rec["identity"]["device_id"] = rec["device_id"]
             rec["identity"]["entities"] = []
+            rec["identity"].pop("repaired", None)
 
     def summary(self, rec: dict[str, Any]) -> str:
         """One line naming a record's values, for pick lists."""

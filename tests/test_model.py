@@ -280,6 +280,36 @@ def test_unavailable_old_device_is_a_candidate():
     assert n.for_device("d8")[0] == rid
 
 
+def test_same_device_repaired_keeps_snapshot():
+    """HA revives a deleted device by serial (same device ID) but its entities are new."""
+    n = nb()
+    n.set_value(PLUG, CODE, A)
+    rid = n.for_device("d1")[0]
+    old = _ents("plug", identify=1)
+    n.update_identity(rid, PLUG, old)
+    assert not M.reissued(old, old)
+    new = [dict(e, unique_id=e["unique_id"] + "-node-c2") for e in old]
+    assert M.reissued(old, new)
+    assert n.update_identity(rid, PLUG, new) is True
+    assert n.restore_pending(rid) and n.same_device_restore(rid)
+    by_key = lambda es: sorted(es, key=lambda e: e["key"])
+    assert by_key(n.records[rid]["identity"]["entities"]) == by_key(old)  # snapshot kept
+    assert n.update_identity(rid, PLUG, new) is False  # frozen while pending
+    n.settle_identity(rid)
+    assert not n.restore_pending(rid) and not n.same_device_restore(rid)
+    n.update_identity(rid, PLUG, new)
+    assert by_key(n.records[rid]["identity"]["entities"]) == by_key(new)
+
+
+def test_one_new_entity_is_not_a_repair():
+    old = _ents("plug", identify=2)
+    added = old + M.assign_keys([{"platform": "matter", "domain": "sensor", "translation_key": "uptime",
+                                  "original_name": "Uptime", "unique_id": "plug-uptime", "entity_id": "sensor.x"}])
+    assert not M.reissued(old, added)
+    one_changed = [dict(e, unique_id="moved") if i == 0 else e for i, e in enumerate(old)]
+    assert not M.reissued(old, one_changed)  # 1 of 4 changed: a migration, not a re-pair
+
+
 if __name__ == "__main__":
     n = 0
     for name, fn in list(globals().items()):
