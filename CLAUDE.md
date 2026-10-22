@@ -55,7 +55,9 @@ drop the real codes the early commits had.
 
 ## Next steps
 - [ ] Delete the 46 MTR labels: ON HOLD (user). Do not delete until asked.
-- [ ] User re-pair test: a P110M (serial) and a Govee (repair prompt / re-enter code).
+- [x] Re-pair tests done 2026-10-22: Govee ×2 (repair pick + restore), P110M Shelf (serial; HA revived same device → 0.3.1).
+- [ ] Next serial-device re-pair: confirm the 0.3.1 `restore_settings` prompt appears and restores exposure.
+- [ ] Next re-pair: confirm the restore dialog shows its text (blank once from a stale browser cache).
 - [ ] Sidebar panel: table of devices × fields, search, inline edit, add field to device,
       tap-to-copy; then retire the Markdown card.
 
