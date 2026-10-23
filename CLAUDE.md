@@ -63,7 +63,7 @@ drop the real codes the early commits had.
       rows). Verified headless (uv + playwright, chrome-headless-shell-1248, hassTokens in
       localStorage): list/search/chips/copy/edit/bad-code error/add-field/clear, Fields add/dup/delete,
       390 px phone layout. No console errors.
-- [ ] Retire the Monitor → Home Markdown card once the user is happy with the page (ask first).
+- [x] 0.4.1: sidebar entry/page title "SB Device Notes" (user). Monitor → Home Markdown card removed 2026-10-22 (user); `dashboard/matter-setup-code-card.yaml` stays in the repo as an optional extra.
 
 ## Build / test
 - `cd tests && python3 test_codes.py && python3 test_model.py` (offline; 21 checks)

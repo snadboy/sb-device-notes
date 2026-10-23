@@ -4,9 +4,9 @@ Home Assistant custom integration: your own fields on devices (a Matter setup co
 warranty date, notes, anything you define), kept when a device is deleted and
 re-attached when it comes back, e.g. after a factory reset.
 
-## The Device Notes page
+## The SB Device Notes page
 
-A sidebar page (**Device Notes**, admins) lists every device with its notes:
+A sidebar page (**SB Device Notes**, admins) lists every device with its notes:
 
 - **Search** by name, area, model or value (a code matches with or without dashes).
 - **Filter**: *With notes*, *Missing a value* (of the chosen field, or any field the device

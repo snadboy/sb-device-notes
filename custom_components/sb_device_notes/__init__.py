@@ -190,7 +190,7 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
                 hass,
                 frontend_url_path=PANEL_URL,
                 webcomponent_name="sb-device-notes-panel",
-                sidebar_title="Device Notes",
+                sidebar_title="SB Device Notes",
                 sidebar_icon="mdi:note-text-outline",
                 module_url=f"{STATIC_URL}/sb-device-notes.js?v={version}",
                 embed_iframe=False,

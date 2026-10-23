@@ -8,7 +8,7 @@
  * re-reads whenever the integration says something changed (…/subscribe).
  * Rows use the shared SB row style (window.SBKit from the sb_ui_kit integration).
  */
-const VERSION = "0.4.0";
+const VERSION = "0.4.1";
 const D = "sb_device_notes";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -124,7 +124,7 @@ class SbDeviceNotesPanel extends HTMLElement {
   async _init() {
     const root = this.attachShadow({ mode: "open" });
     root.innerHTML = `<style>${STYLE}</style>
-      <div class="bar"><ha-menu-button></ha-menu-button><div class="title">Device Notes</div>
+      <div class="bar"><ha-menu-button></ha-menu-button><div class="title">SB Device Notes</div>
         <div class="tabs"><button data-tab="devices" class="on">Devices</button><button data-tab="fields">Fields</button></div></div>
       <div class="page"><div class="col"><ha-card><div class="body"><div class="sbk-wait">Loading…</div></div></ha-card>
         <div class="foot">SB Device Notes ${VERSION} · <a href="/config/integrations/integration/${D}">Integration page</a></div></div></div>`;
