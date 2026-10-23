@@ -54,12 +54,16 @@ drop the real codes the early commits had.
   issue `restore_settings`. Shelf Power's own pre-repair snapshot was already lost.
 
 ## Next steps
-- [ ] Delete the 46 MTR labels: ON HOLD (user). Do not delete until asked.
+- [x] MTR labels deleted 2026-10-22 (40 left by then; user OK'd). 4 waiting codes forgotten. 0/8 fixes confirmed by user; their notes cleared.
+- [ ] 18 devices without codes: SB Todos task "Record Matter setup codes for 18 devices" (Homelab, id 1xhmmvcyl57d), one subtask per device.
 - [x] Re-pair tests done 2026-10-22: Govee ×2 (repair pick + restore), P110M Shelf (serial; HA revived same device → 0.3.1).
 - [ ] Next serial-device re-pair: confirm the 0.3.1 `restore_settings` prompt appears and restores exposure.
 - [ ] Next re-pair: confirm the restore dialog shows its text (blank once from a stale browser cache).
-- [ ] Sidebar panel: table of devices × fields, search, inline edit, add field to device,
-      tap-to-copy; then retire the Markdown card.
+- [x] 0.4.0 sidebar page `/sb-device-notes` (websocket.py + frontend/sb-device-notes.js, SB UI Kit
+      rows). Verified headless (uv + playwright, chrome-headless-shell-1248, hassTokens in
+      localStorage): list/search/chips/copy/edit/bad-code error/add-field/clear, Fields add/dup/delete,
+      390 px phone layout. No console errors.
+- [ ] Retire the Monitor → Home Markdown card once the user is happy with the page (ask first).
 
 ## Build / test
 - `cd tests && python3 test_codes.py && python3 test_model.py` (offline; 21 checks)

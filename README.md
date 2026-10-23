@@ -4,6 +4,20 @@ Home Assistant custom integration: your own fields on devices (a Matter setup co
 warranty date, notes, anything you define), kept when a device is deleted and
 re-attached when it comes back, e.g. after a factory reset.
 
+## The Device Notes page
+
+A sidebar page (**Device Notes**, admins) lists every device with its notes:
+
+- **Search** by name, area, model or value (a code matches with or without dashes).
+- **Filter**: *With notes*, *Missing a value* (of the chosen field, or any field the device
+  shows), *Waiting* (notes of removed devices), *All devices*; and pick one field to show.
+- **Copy** any value with its copy button, e.g. a setup code for the pairing screen.
+- **Tap a device** to edit its fields in place, or add a field to it. Mistyped codes are
+  rejected with the reason.
+- **Fields tab**: create, edit and delete fields.
+
+Requires the [SB UI Kit](https://github.com/snadboy/sb-ui-kit) integration (shared row style).
+
 ## Fields
 
 Create, edit and delete fields under **Settings → Devices & services → SB Device Notes →

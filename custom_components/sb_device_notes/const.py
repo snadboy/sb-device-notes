@@ -12,3 +12,6 @@ SIGNAL_UPDATED = f"{DOMAIN}_updated"
 ISSUE_PREFIX = "unmatched_"
 RESTORE_PREFIX = "restore_"
 SUMMARY_PREFIX = "summary__"
+
+PANEL_URL = "sb-device-notes"
+STATIC_URL = "/sb_device_notes_static"

@@ -6,7 +6,11 @@
   ],
   "config_flow": true,
   "dependencies": [
-    "repairs"
+    "frontend",
+    "http",
+    "panel_custom",
+    "repairs",
+    "sb_ui_kit"
   ],
   "documentation": "https://github.com/snadboy/sb-device-notes",
   "integration_type": "service",
@@ -14,5 +18,5 @@
   "issue_tracker": "https://github.com/snadboy/sb-device-notes/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.3.1"
+  "version": "0.4.0"
 }

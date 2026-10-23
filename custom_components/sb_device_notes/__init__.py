@@ -4,20 +4,27 @@ notes…), kept when a device is deleted and re-attached when it comes back."""
 from __future__ import annotations
 
 from collections.abc import Callable
+import logging
+from pathlib import Path
 
 import voluptuous as vol
 
+from homeassistant.components import panel_custom
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.loader import async_get_integration
 
-from .const import DOMAIN
+from . import websocket
+from .const import DOMAIN, PANEL_URL, STATIC_URL
 from .manager import NotesManager
 from .model import FIELD_TYPES, SCOPES, Device, NoteError
 
+_LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.DATE, Platform.NUMBER, Platform.SENSOR, Platform.SWITCH, Platform.TEXT]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -165,7 +172,32 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         ("delete_field", _delete_field, DELETE_FIELD_SCHEMA),
     ):
         hass.services.async_register(DOMAIN, name, _guard(fn), schema)
+    websocket.async_register(hass)
+    await _async_register_panel(hass)
     return True
+
+
+async def _async_register_panel(hass: HomeAssistant) -> None:
+    """The sidebar page. The notes work without it, so a failure here is only logged."""
+    try:
+        integration = await async_get_integration(hass, DOMAIN)
+        version = str(integration.version or "0")
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig(STATIC_URL, str(Path(__file__).parent / "frontend"), False)]
+        )
+        if PANEL_URL not in hass.data.get("frontend_panels", {}):
+            await panel_custom.async_register_panel(
+                hass,
+                frontend_url_path=PANEL_URL,
+                webcomponent_name="sb-device-notes-panel",
+                sidebar_title="Device Notes",
+                sidebar_icon="mdi:note-text-outline",
+                module_url=f"{STATIC_URL}/sb-device-notes.js?v={version}",
+                embed_iframe=False,
+                require_admin=True,
+            )
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("Could not register the Device Notes sidebar page")
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: DeviceNotesConfigEntry) -> bool:
