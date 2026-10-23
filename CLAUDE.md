@@ -53,11 +53,19 @@ drop the real codes the early commits had.
   (≥ half of matched entity keys have new unique IDs) → keep snapshot, `identity.repaired`,
   issue `restore_settings`. Shelf Power's own pre-repair snapshot was already lost.
 
+- 2026-10-22: 0.5.0 quick entry (Missing filter: inline box per missing field, Enter saves and
+  focuses the next; `_render` keeps the focused box across redraws) and QR scanning: native app
+  scanner via the external bus (`bar_code/scan` → intercept `bar_code/scan_result|aborted` by
+  wrapping `hass.auth.external.receiveMessage` for the duration, ack them, `bar_code/notify` for
+  non-Matter codes, `bar_code/close`), else BarcodeDetector + getUserMedia (secure context).
+  Verified headless with a fake bridge; the real app scanner is NOT yet tried on the phone.
+
 ## Next steps
 - [x] MTR labels deleted 2026-10-22 (40 left by then; user OK'd). 4 waiting codes forgotten. 0/8 fixes confirmed by user; their notes cleared.
 - [ ] 18 devices without codes: SB Todos task "Record Matter setup codes for 18 devices" (Homelab, id 1xhmmvcyl57d), one subtask per device.
 - [x] Re-pair tests done 2026-10-22: Govee ×2 (repair pick + restore), P110M Shelf (serial; HA revived same device → 0.3.1).
 - [ ] Next serial-device re-pair: confirm the 0.3.1 `restore_settings` prompt appears and restores exposure.
+- [ ] User: try the scan button in the HA Android app (native scanner path untested on a real phone).
 - [ ] Next re-pair: confirm the restore dialog shows its text (blank once from a stale browser cache).
 - [x] 0.4.0 sidebar page `/sb-device-notes` (websocket.py + frontend/sb-device-notes.js, SB UI Kit
       rows). Verified headless (uv + playwright, chrome-headless-shell-1248, hassTokens in

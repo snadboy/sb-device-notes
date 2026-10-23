@@ -8,7 +8,7 @@
  * re-reads whenever the integration says something changed (…/subscribe).
  * Rows use the shared SB row style (window.SBKit from the sb_ui_kit integration).
  */
-const VERSION = "0.4.1";
+const VERSION = "0.5.0";
 const D = "sb_device_notes";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -97,6 +97,24 @@ select.pick { font: inherit; font-size: 14px; height: 36px; padding: 0 8px; bord
 .fe .ints input { width: auto; }
 .fe .full { grid-column: 1 / -1; }
 .foot { color: var(--secondary-text-color); font-size: 12px; margin: 12px 4px 0; }
+.qe-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 4px; font-size: 13px; }
+.qe-line .k { color: var(--secondary-text-color); white-space: nowrap; }
+.qe-box { display: inline-flex; align-items: center; gap: 4px; flex: 1 1 200px; min-width: 0; }
+.qe { font: inherit; font-size: 14px; padding: 6px 9px; border-radius: 6px; border: 1px solid var(--divider-color); min-width: 0; flex: 1;
+      background: var(--card-background-color); color: var(--primary-text-color); color-scheme: light dark; }
+.qe:focus { outline: 2px solid var(--primary-color); outline-offset: -1px; }
+.qe-err { flex-basis: 100%; color: var(--error-color); font-size: 12.5px; }
+.iconbtn { border: none; background: none; cursor: pointer; color: var(--primary-color); width: 36px; height: 36px; border-radius: 18px; flex: 0 0 36px;
+           display: inline-flex; align-items: center; justify-content: center; --mdc-icon-size: 20px; }
+.iconbtn:hover { background: color-mix(in srgb, var(--primary-color) 12%, transparent); }
+.ed-in { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ed-in > :first-child { flex: 1; }
+.hint { padding: 0 16px 10px; font-size: 13px; color: var(--secondary-text-color); }
+dialog.scan { border: none; border-radius: 12px; padding: 16px; background: var(--card-background-color); color: var(--primary-text-color);
+              width: min(480px, calc(100vw - 32px)); box-shadow: 0 8px 32px rgba(0,0,0,.4); }
+dialog.scan::backdrop { background: rgba(0,0,0,.6); }
+dialog.scan video { width: 100%; border-radius: 8px; background: #000; aspect-ratio: 4 / 3; object-fit: cover; }
+.scan-t { font-weight: 500; margin-bottom: 8px; } .scan-m { min-height: 1.4em; font-size: 13px; color: var(--warning-color, #ffa600); margin: 6px 0; }
 .foot a { color: var(--primary-color); }
 `;
 
@@ -105,7 +123,7 @@ class SbDeviceNotesPanel extends HTMLElement {
     super();
     this._tab = "devices"; this._q = ""; this._show = "notes"; this._field = "";
     this._open = null; this._menu = null; this._confirm = null; this._err = {}; this._msg = "";
-    this._fieldOpen = null; this._copied = null;
+    this._fieldOpen = null; this._copied = null; this._qerr = {}; this._busy = false;
   }
 
   set hass(h) {
@@ -155,6 +173,8 @@ class SbDeviceNotesPanel extends HTMLElement {
     // Don't redraw under an open editor (it would wipe what's being typed).
     if (this._open && this.shadowRoot.querySelector(".editor")) return;
     if (this._fieldOpen && this.shadowRoot.querySelector(".fe")) return;
+    const a = this.shadowRoot.activeElement;
+    if (a?.classList?.contains("qe") && a.value) return;
     this._render();
   }
 
@@ -194,8 +214,15 @@ class SbDeviceNotesPanel extends HTMLElement {
     const K = kit();
     if (this._loadErr) { body.innerHTML = `<div class="msg err">${esc(this._loadErr)}</div>`; return; }
     if (!this._data || !K) { body.innerHTML = `<div class="sbk-wait">Loading…</div>`; return; }
+    // Keep the focused quick-entry box (and what's typed in it) across the redraw.
+    const a = this.shadowRoot.activeElement;
+    const keep = a?.classList?.contains("qe") ? { qk: a.dataset.qk, value: a.value } : null;
     body.innerHTML = this._tab === "fields" ? this._fieldsHtml(K) : this._devicesHtml(K);
     this._wire(body);
+    if (keep) {
+      const el = body.querySelector(`.qe[data-qk="${CSS.escape(keep.qk)}"]`);
+      if (el) { el.value = keep.value; el.focus(); }
+    }
   }
 
   _devicesHtml(K) {
@@ -210,6 +237,7 @@ class SbDeviceNotesPanel extends HTMLElement {
       <div class="tools"><label class="search"><ha-icon icon="mdi:magnify"></ha-icon><input class="q" placeholder="Search name, area, model, code…" value="${esc(this._q)}"></label>
         <select class="pick fsel" aria-label="Field">${fieldOpts}</select></div>
       <div class="chips">${chips}</div>
+      ${this._show === "missing" ? `<div class="hint">Type a value and press Enter to save it and jump to the next one${this._scanAvailable() ? ", or tap the scan button to read a Matter QR code with the camera" : ""}.</div>` : ""}
       ${this._msg ? `<div class="msg err">${esc(this._msg)}</div>` : ""}
       ${rows.length ? rows.map((r) => this._rowHtml(r, K)).join("") : `<div class="sbk-empty">Nothing matches.</div>`}`;
   }
@@ -228,7 +256,9 @@ class SbDeviceNotesPanel extends HTMLElement {
   }
 
   _rowHtml(row, K) {
-    const shown = this._shownFields(row);
+    const quick = this._show === "missing" && !row.waiting
+      ? this._shownFields(row).filter((fid) => !row.values[fid]) : [];
+    const shown = this._shownFields(row).filter((fid) => !quick.includes(fid));
     const icon = row.waiting ? ["warn", "mdi:clock-alert-outline"] : row.unavailable ? ["bad", "mdi:lan-disconnect"]
       : Object.keys(row.values).length ? ["armed", "mdi:note-text-outline"] : ["idle", "mdi:note-outline"];
     const sub = [row.waiting ? "Waiting for re-pair" : null, row.area, [row.manufacturer, row.model].filter(Boolean).join(" ")].filter(Boolean);
@@ -246,11 +276,33 @@ class SbDeviceNotesPanel extends HTMLElement {
           <div class="sbk-ico sm ${icon[0]}"><ha-icon icon="${icon[1]}"></ha-icon></div>
           <div class="sbk-txt"><div class="sbk-t">${esc(row.name || "?")}</div>
             <div class="sbk-s">${sub.map(esc).join('<span class="sbk-dot"></span>')}</div>
-            ${shown.length ? `<div class="vals">${shown.map((fid) => this._valueHtml(row, fid)).join("")}</div>` : ""}</div>
+            ${shown.length ? `<div class="vals">${shown.map((fid) => this._valueHtml(row, fid)).join("")}</div>` : ""}
+            ${quick.map((fid) => this._quickHtml(row, fid)).join("")}</div>
         </div>
         <button class="sbk-kb ${menuOpen ? "on" : ""}" data-act="menu" aria-label="More for ${esc(row.name)}">${K.kbIcon}</button>
         ${menuOpen ? K.menu(`${row.name} actions`, items) : ""}
       </div>${this._open === row.key && !row.waiting ? this._editorHtml(row) : ""}`;
+  }
+
+  _scanAvailable() {
+    if (this._hass?.auth?.external?.config?.hasBarCodeScanner) return "native";
+    if ("BarcodeDetector" in window && window.isSecureContext && navigator.mediaDevices?.getUserMedia) return "browser";
+    return null;
+  }
+
+  _quickHtml(row, fid) {
+    const f = this._fieldById(fid); if (!f) return "";
+    const qk = `${row.key}|${fid}`;
+    const attrs = `class="qe" data-qk="${esc(qk)}" aria-label="${esc(f.name)} for ${esc(row.name)}"`;
+    let input;
+    if (f.type === "boolean") input = `<select ${attrs}><option value="">—</option><option value="true">Yes</option><option value="false">No</option></select>`;
+    else if (f.type === "date") input = `<input ${attrs} type="date">`;
+    else if (f.type === "number") input = `<input ${attrs} type="number" step="any" inputmode="decimal">`;
+    else input = `<input ${attrs} type="${f.type === "link" ? "url" : "text"}" autocomplete="off" ${f.type === "matter_code" ? 'inputmode="numeric" placeholder="1234-567-8901"' : ""}>`;
+    const scan = f.type === "matter_code" && this._scanAvailable()
+      ? `<button class="iconbtn" data-scan="${esc(qk)}" title="Scan the QR code" aria-label="Scan the QR code for ${esc(row.name)}"><ha-icon icon="mdi:qrcode-scan"></ha-icon></button>` : "";
+    return `<div class="qe-line"><span class="k">${esc(f.name)}</span><span class="qe-box">${input}${scan}</span>
+      ${this._qerr[qk] ? `<div class="qe-err">${esc(this._qerr[qk])}</div>` : ""}</div>`;
   }
 
   _inputHtml(f, v) {
@@ -270,7 +322,9 @@ class SbDeviceNotesPanel extends HTMLElement {
     const ids = row.visible.filter((id) => this._fieldById(id));
     const addable = this._fields().filter((f) => !row.visible.includes(f.id));
     return `<div class="editor" data-key="${esc(row.key)}">
-      ${ids.map((id) => { const f = this._fieldById(id); return `<div class="ed-row"><span><label for="in-${esc(id)}">${esc(f.name)}</label></span>${this._inputHtml(f, row.values[id])}
+      ${ids.map((id) => { const f = this._fieldById(id);
+        const scan = f.type === "matter_code" && this._scanAvailable() ? `<button class="iconbtn" data-escan="${esc(id)}" title="Scan the QR code" aria-label="Scan the QR code"><ha-icon icon="mdi:qrcode-scan"></ha-icon></button>` : "";
+        return `<div class="ed-row"><span><label for="in-${esc(id)}">${esc(f.name)}</label></span><div class="ed-in">${this._inputHtml(f, row.values[id])}${scan}</div>
         ${this._err[id] ? `<div class="ed-err">${esc(this._err[id])}</div>` : ""}</div>`; }).join("")}
       ${ids.length ? "" : `<div class="msg">No fields on this device yet: add one below.</div>`}
       <div class="ed-btns">${addable.length ? `<select class="pick addf"><option value="">+ Add a field…</option>${addable.map((f) => `<option value="${esc(f.id)}">${esc(f.name)}</option>`).join("")}</select>` : ""}
@@ -349,8 +403,8 @@ class SbDeviceNotesPanel extends HTMLElement {
         this._open = this._open === key ? null : key; this._err = {}; this._render();
         if (this._open) this.shadowRoot.querySelector(".editor input, .editor textarea, .editor select")?.focus();
       };
-      o.addEventListener("click", (e) => { if (!e.target.closest("a, .copy")) go(); });
-      o.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+      o.addEventListener("click", (e) => { if (!e.target.closest("a, .copy, .qe-line")) go(); });
+      o.addEventListener("keydown", (e) => { if (e.target !== o) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
     });
     body.querySelectorAll("button[data-act=menu]").forEach((b) => b.addEventListener("click", () => {
       const key = b.closest("[data-key]").dataset.key; this._setMenu(this._menu === key ? null : key);
@@ -361,6 +415,20 @@ class SbDeviceNotesPanel extends HTMLElement {
       c.querySelector("[data-act=no]").addEventListener("click", () => { this._confirm = null; this._render(); });
       c.querySelector("[data-act=yes]").addEventListener("click", () => this._confirmed(key));
     });
+    body.querySelectorAll(".qe").forEach((el) => {
+      const save = () => this._quickSave(el.dataset.qk, el.value);
+      if (el.tagName === "SELECT" || el.type === "date") el.addEventListener("change", () => { if (el.value) save(); });
+      else el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (el.value.trim()) save(); } });
+    });
+    body.querySelectorAll("[data-scan]").forEach((b) => b.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const raw = await this._scan(); if (raw) this._quickSave(b.dataset.scan, raw);
+    }));
+    body.querySelectorAll("[data-escan]").forEach((b) => b.addEventListener("click", async () => {
+      const raw = await this._scan(); if (!raw) return;
+      const el = this.shadowRoot.querySelector(`.editor [data-f="${CSS.escape(b.dataset.escan)}"]`);
+      if (el) { el.value = raw; this.shadowRoot.querySelector(".editor [data-act=save]")?.focus(); }
+    }));
     const ed = body.querySelector(".editor");
     if (ed) {
       ed.querySelector("[data-act=cancel]").addEventListener("click", () => { this._open = null; this._err = {}; this._render(); });
@@ -409,6 +477,95 @@ class SbDeviceNotesPanel extends HTMLElement {
     // keep what was typed before the field was added
     for (const [f, v] of Object.entries(typed)) { const el = this.shadowRoot.querySelector(`.editor [data-f="${CSS.escape(f)}"]`); if (el) el.value = v; }
     this.shadowRoot.querySelector(`.editor [data-f="${CSS.escape(fid)}"]`)?.focus();
+  }
+
+  /** Save one quick-entry value, then focus the next empty box (the saved one drops out). */
+  async _quickSave(qk, value) {
+    if (this._busy) return;
+    this._busy = true;
+    const order = [...this.shadowRoot.querySelectorAll(".qe")].map((x) => x.dataset.qk);
+    const at = order.indexOf(qk);
+    const [key, fid] = qk.split("|");
+    const f = this._fieldById(fid);
+    const v = f?.type === "boolean" ? value === "true" : value;
+    try {
+      await this._hass.callWS({ type: `${D}/set`, device_id: key.slice(2), field: fid, value: v });
+      delete this._qerr[qk];
+      this._data = await this._hass.callWS({ type: `${D}/list` });
+      this._render();
+      const next = this.shadowRoot.querySelectorAll(".qe")[Math.max(0, at)];
+      next?.focus(); next?.scrollIntoView({ block: "center", behavior: "smooth" });
+    } catch (e) {
+      this._qerr[qk] = String(e?.message || e);
+      this._render();
+      const el = this.shadowRoot.querySelector(`.qe[data-qk="${CSS.escape(qk)}"]`);
+      if (el) { el.value = value; el.focus(); }
+    } finally { this._busy = false; }
+  }
+
+  /** A Matter QR payload ("MT:…") from the camera, or null. */
+  _scan() {
+    const how = this._scanAvailable();
+    if (how === "native") return this._scanNative();
+    if (how === "browser") return this._scanBrowser().catch((e) => { this._msg = `Camera: ${e?.message || e}`; this._render(); return null; });
+    return Promise.resolve(null);
+  }
+
+  // The HA companion app's own scanner (the one HA uses to add Matter devices). Its results
+  // arrive as external-bus commands; catch ours while the scan is open, pass the rest on.
+  _scanNative() {
+    const ext = this._hass.auth.external;
+    return new Promise((resolve) => {
+      const own = Object.prototype.hasOwnProperty.call(ext, "receiveMessage");
+      const orig = ext.receiveMessage;
+      const restore = () => { if (own) ext.receiveMessage = orig; else delete ext.receiveMessage; };
+      ext.receiveMessage = (msg) => {
+        if (msg?.type === "command" && (msg.command === "bar_code/scan_result" || msg.command === "bar_code/aborted")) {
+          ext.fireMessage({ id: msg.id, type: "result", success: true, result: null });
+          if (msg.command === "bar_code/aborted") { restore(); resolve(null); return; }
+          const { format, rawValue } = msg.payload || {};
+          if (format !== "qr_code" || !String(rawValue || "").toUpperCase().startsWith("MT:")) {
+            ext.fireMessage({ type: "bar_code/notify", payload: { message: "That isn't a Matter QR code. Try the one on the device or its box." } });
+            return;                       // keep scanning
+          }
+          restore(); ext.fireMessage({ type: "bar_code/close" }); resolve(rawValue);
+          return;
+        }
+        return orig.call(ext, msg);
+      };
+      ext.fireMessage({ type: "bar_code/scan", payload: {
+        title: "Scan the Matter QR code", description: "Point the camera at the QR code on the device or its box.",
+        alternative_option_label: "Type the code instead" } });
+    });
+  }
+
+  // A browser with the BarcodeDetector API (Chrome on Android, Safari) over https.
+  async _scanBrowser() {
+    const det = new window.BarcodeDetector({ formats: ["qr_code"] });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    return new Promise((resolve) => {
+      const dlg = document.createElement("dialog"); dlg.className = "scan";
+      dlg.innerHTML = `<div class="scan-t">Point the camera at the Matter QR code</div><video playsinline muted autoplay></video>
+        <div class="scan-m"></div><div class="ed-btns"><span class="sp"></span><button class="sbk-btn">Cancel</button></div>`;
+      this.shadowRoot.appendChild(dlg);
+      const v = dlg.querySelector("video"); v.srcObject = stream;
+      let done = false;
+      const finish = (val) => { if (done) return; done = true; stream.getTracks().forEach((t) => t.stop()); dlg.close(); dlg.remove(); resolve(val); };
+      dlg.querySelector("button").addEventListener("click", () => finish(null));
+      dlg.addEventListener("cancel", () => finish(null));
+      const tick = async () => {
+        if (done) return;
+        try {
+          const codes = await det.detect(v);
+          const mt = codes.find((c) => String(c.rawValue || "").toUpperCase().startsWith("MT:"));
+          if (mt) { finish(mt.rawValue); return; }
+          if (codes.length) dlg.querySelector(".scan-m").textContent = "That isn't a Matter QR code.";
+        } catch (e) { /* frame not ready */ }
+        setTimeout(tick, 250);
+      };
+      v.addEventListener("loadeddata", tick, { once: true });
+      dlg.showModal();
+    });
   }
 
   _collect(ed) { const out = {}; ed.querySelectorAll("[data-f]").forEach((el) => { out[el.dataset.f] = el.value; }); return out; }

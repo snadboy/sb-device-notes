@@ -14,6 +14,12 @@ A sidebar page (**SB Device Notes**, admins) lists every device with its notes:
 - **Copy** any value with its copy button, e.g. a setup code for the pairing screen.
 - **Tap a device** to edit its fields in place, or add a field to it. Mistyped codes are
   rejected with the reason.
+- **Quick entry**: under *Missing a value*, each device shows an empty box for what it's
+  missing. Type and press Enter: it saves and moves to the next device.
+- **Scan a Matter QR code**: the scan button reads the code with the camera, using the Home
+  Assistant app's own scanner (the one HA uses to add Matter devices), or in a browser that
+  has the BarcodeDetector API (Chrome on Android, Safari) over https. The full QR payload is
+  stored, and the 11-digit code derived from it.
 - **Fields tab**: create, edit and delete fields.
 
 Requires the [SB UI Kit](https://github.com/snadboy/sb-ui-kit) integration (shared row style).
