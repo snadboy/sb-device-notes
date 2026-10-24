@@ -29,7 +29,7 @@ class NoteText(NoteEntity, TextEntity):
 
     @property
     def icon(self) -> str | None:
-        return {MATTER_CODE: "mdi:qrcode", LINK: "mdi:link-variant"}.get(self._ftype, "mdi:note-text-outline")
+        return {MATTER_CODE: "mdi:key-variant", LINK: "mdi:link-variant"}.get(self._ftype, "mdi:note-text-outline")
 
     @property
     def native_value(self) -> str | None:

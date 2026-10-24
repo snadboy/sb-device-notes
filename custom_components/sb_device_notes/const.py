@@ -15,3 +15,8 @@ SUMMARY_PREFIX = "summary__"
 
 PANEL_URL = "sb-device-notes"
 STATIC_URL = "/sb_device_notes_static"
+
+# The config entry's title is the one line of our own text the integration page shows, so it
+# says how to reach the page (the entry's ⚙ opens it). Fits a phone screen.
+ENTRY_TITLE = "Tap ⚙ to view, edit, scan codes"
+OLD_ENTRY_TITLE = "SB Device Notes"

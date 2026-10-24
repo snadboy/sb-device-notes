@@ -60,12 +60,24 @@ drop the real codes the early commits had.
   non-Matter codes, `bar_code/close`), else BarcodeDetector + getUserMedia (secure context).
   Verified headless with a fake bridge; the real app scanner is NOT yet tried on the phone.
 
+- 2026-10-24: 0.5.1, after the user couldn't find the scanner (tried the text entity's more-info,
+  whose mdi:qrcode icon looked like a button, then the integration page). The entry's ⚙ now opens
+  the page (`config_panel_domain=DOMAIN`; replaces the options flow there, whose jobs the page
+  already does); entry title "Tap ⚙ to view, edit, scan codes" (the only free text on the
+  integration page; old default title migrated in setup_entry, a user's own title kept); matter
+  entity/field icon mdi:key-variant; labelled **Scan** button always shown, tapping it where it
+  can't scan says why (`_scanBlocked`, incl. the app's reported hasBarCodeScanner). Fixed the
+  phone editor layout: the max-width 600px media query came before the rules it overrides.
+  Verified headless (JS served through a Playwright route, no live change): https message,
+  fake app with hasBarCodeScanner 0 and 1 (scan → result → close, box filled).
+
 ## Next steps
 - [x] MTR labels deleted 2026-10-22 (40 left by then; user OK'd). 4 waiting codes forgotten. 0/8 fixes confirmed by user; their notes cleared.
 - [ ] 18 devices without codes: SB Todos task "Record Matter setup codes for 18 devices" (Homelab, id 1xhmmvcyl57d), one subtask per device.
 - [x] Re-pair tests done 2026-10-22: Govee ×2 (repair pick + restore), P110M Shelf (serial; HA revived same device → 0.3.1).
 - [ ] Next serial-device re-pair: confirm the 0.3.1 `restore_settings` prompt appears and restores exposure.
-- [ ] User: try the scan button in the HA Android app (native scanner path untested on a real phone).
+- [ ] User: try **Scan** in the HA Android app (native scanner path untested on a real phone). If it
+      shows the "didn't offer its QR scanner" message, the value it reports is the clue.
 - [ ] Next re-pair: confirm the restore dialog shows its text (blank once from a stale browser cache).
 - [x] 0.4.0 sidebar page `/sb-device-notes` (websocket.py + frontend/sb-device-notes.js, SB UI Kit
       rows). Verified headless (uv + playwright, chrome-headless-shell-1248, hassTokens in

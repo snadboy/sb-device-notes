@@ -24,7 +24,7 @@ const whenKit = () => kitPromise || (kitPromise = new Promise((resolve) => {
 
 const TYPE_ICON = {
   text: "mdi:note-text-outline", long_text: "mdi:text-long", date: "mdi:calendar-check", number: "mdi:numeric",
-  boolean: "mdi:checkbox-marked-outline", link: "mdi:link-variant", matter_code: "mdi:qrcode",
+  boolean: "mdi:checkbox-marked-outline", link: "mdi:link-variant", matter_code: "mdi:key-variant",
 };
 const TYPE_LABEL = {
   text: "Text", long_text: "Long text", date: "Date", number: "Number", boolean: "Yes / no", link: "Link", matter_code: "Matter setup code",
@@ -70,7 +70,6 @@ select.pick { font: inherit; font-size: 14px; height: 36px; padding: 0 8px; bord
 .val .k { color: var(--secondary-text-color); white-space: nowrap; }
 .val .v { color: var(--primary-text-color); overflow-wrap: anywhere; }
 .val .v.code { font-family: var(--code-font-family, monospace); font-size: 14px; font-weight: 600; letter-spacing: .03em; white-space: nowrap; overflow-wrap: normal; }
-@media (max-width: 600px) { .page { padding: 8px; } .editor { padding-left: 16px; } .ed-row { grid-template-columns: 1fr; } .ed-err { grid-column: 1; } }
 .val .v.empty { color: var(--secondary-text-color); font-style: italic; }
 .val a.v { color: var(--primary-color); }
 .copy { border: none; background: none; cursor: pointer; color: var(--secondary-text-color); padding: 2px; border-radius: 12px; width: 28px; height: 28px;
@@ -85,6 +84,8 @@ select.pick { font: inherit; font-size: 14px; height: 36px; padding: 0 8px; bord
   background: var(--card-background-color); color: var(--primary-text-color); color-scheme: light dark; min-width: 0; width: 100%; box-sizing: border-box; }
 .ed-row textarea { min-height: 70px; resize: vertical; }
 .ed-err { grid-column: 2; color: var(--error-color); font-size: 12.5px; }
+/* after the rules it overrides */
+@media (max-width: 600px) { .page { padding: 8px; } .editor { padding-left: 16px; } .ed-row { grid-template-columns: 1fr; } .ed-err { grid-column: 1; } }
 .ed-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
 .ed-btns .sp { flex: 1; }
 .sbk-btn.primary { background: var(--primary-color); border-color: transparent; color: var(--text-primary-color, #fff); }
@@ -106,6 +107,9 @@ select.pick { font: inherit; font-size: 14px; height: 36px; padding: 0 8px; bord
 .qe-err { flex-basis: 100%; color: var(--error-color); font-size: 12.5px; }
 .iconbtn { border: none; background: none; cursor: pointer; color: var(--primary-color); width: 36px; height: 36px; border-radius: 18px; flex: 0 0 36px;
            display: inline-flex; align-items: center; justify-content: center; --mdc-icon-size: 20px; }
+.scanbtn { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; padding: 0 12px 0 9px; height: 34px; border-radius: 17px; cursor: pointer;
+           font: inherit; font-size: 13.5px; font-weight: 500; color: var(--primary-color); background: none; border: 1px solid var(--primary-color); --mdc-icon-size: 18px; }
+.scanbtn:hover { background: color-mix(in srgb, var(--primary-color) 12%, transparent); }
 .iconbtn:hover { background: color-mix(in srgb, var(--primary-color) 12%, transparent); }
 .ed-in { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .ed-in > :first-child { flex: 1; }
@@ -237,7 +241,7 @@ class SbDeviceNotesPanel extends HTMLElement {
       <div class="tools"><label class="search"><ha-icon icon="mdi:magnify"></ha-icon><input class="q" placeholder="Search name, area, model, code…" value="${esc(this._q)}"></label>
         <select class="pick fsel" aria-label="Field">${fieldOpts}</select></div>
       <div class="chips">${chips}</div>
-      ${this._show === "missing" ? `<div class="hint">Type a value and press Enter to save it and jump to the next one${this._scanAvailable() ? ", or tap the scan button to read a Matter QR code with the camera" : ""}.</div>` : ""}
+      ${this._show === "missing" ? `<div class="hint">Type a value and press Enter to save it and jump to the next one${this._fields().some((f) => f.type === "matter_code") ? ". For a Matter code, tap Scan to read its QR code with the camera" : ""}.</div>` : ""}
       ${this._msg ? `<div class="msg err">${esc(this._msg)}</div>` : ""}
       ${rows.length ? rows.map((r) => this._rowHtml(r, K)).join("") : `<div class="sbk-empty">Nothing matches.</div>`}`;
   }
@@ -290,6 +294,28 @@ class SbDeviceNotesPanel extends HTMLElement {
     return null;
   }
 
+  // Shown even when scanning can't work here: tapping it then says why (see _scanBlocked).
+  _scanBtnHtml(attr, name) {
+    return `<button class="scanbtn" ${attr} aria-label="Scan the Matter QR code for ${esc(name)}"><ha-icon icon="mdi:camera-outline"></ha-icon>Scan</button>`;
+  }
+
+  /** Why the camera can't be used here, or null when it can. */
+  _scanBlocked() {
+    if (this._scanAvailable()) return null;
+    const ext = this._hass?.auth?.external;
+    if (ext) return `This Home Assistant app didn't offer its QR scanner (it reported hasBarCodeScanner = ${JSON.stringify(ext.config?.hasBarCodeScanner)}). Type the code printed under the QR code instead.`;
+    if (!window.isSecureContext) return "The camera needs a secure connection. Open Home Assistant at its https:// address (or in the Home Assistant app), or type the code printed under the QR code.";
+    return "This browser can't read QR codes. Use the Home Assistant app on your phone (or Chrome on Android, Safari), or type the code printed under the QR code.";
+  }
+
+  // An error under the box a scan button belongs to, without a redraw (that would drop typing).
+  _scanError(btn, text) {
+    const line = btn.closest(".qe-line, .ed-row"); if (!line) return;
+    const cls = line.classList.contains("qe-line") ? "qe-err" : "ed-err";
+    line.querySelector(`.${cls}`)?.remove();
+    const div = document.createElement("div"); div.className = cls; div.textContent = text; line.appendChild(div);
+  }
+
   _quickHtml(row, fid) {
     const f = this._fieldById(fid); if (!f) return "";
     const qk = `${row.key}|${fid}`;
@@ -299,8 +325,7 @@ class SbDeviceNotesPanel extends HTMLElement {
     else if (f.type === "date") input = `<input ${attrs} type="date">`;
     else if (f.type === "number") input = `<input ${attrs} type="number" step="any" inputmode="decimal">`;
     else input = `<input ${attrs} type="${f.type === "link" ? "url" : "text"}" autocomplete="off" ${f.type === "matter_code" ? 'inputmode="numeric" placeholder="1234-567-8901"' : ""}>`;
-    const scan = f.type === "matter_code" && this._scanAvailable()
-      ? `<button class="iconbtn" data-scan="${esc(qk)}" title="Scan the QR code" aria-label="Scan the QR code for ${esc(row.name)}"><ha-icon icon="mdi:qrcode-scan"></ha-icon></button>` : "";
+    const scan = f.type === "matter_code" ? this._scanBtnHtml(`data-scan="${esc(qk)}"`, row.name) : "";
     return `<div class="qe-line"><span class="k">${esc(f.name)}</span><span class="qe-box">${input}${scan}</span>
       ${this._qerr[qk] ? `<div class="qe-err">${esc(this._qerr[qk])}</div>` : ""}</div>`;
   }
@@ -323,7 +348,7 @@ class SbDeviceNotesPanel extends HTMLElement {
     const addable = this._fields().filter((f) => !row.visible.includes(f.id));
     return `<div class="editor" data-key="${esc(row.key)}">
       ${ids.map((id) => { const f = this._fieldById(id);
-        const scan = f.type === "matter_code" && this._scanAvailable() ? `<button class="iconbtn" data-escan="${esc(id)}" title="Scan the QR code" aria-label="Scan the QR code"><ha-icon icon="mdi:qrcode-scan"></ha-icon></button>` : "";
+        const scan = f.type === "matter_code" ? this._scanBtnHtml(`data-escan="${esc(id)}"`, row.name) : "";
         return `<div class="ed-row"><span><label for="in-${esc(id)}">${esc(f.name)}</label></span><div class="ed-in">${this._inputHtml(f, row.values[id])}${scan}</div>
         ${this._err[id] ? `<div class="ed-err">${esc(this._err[id])}</div>` : ""}</div>`; }).join("")}
       ${ids.length ? "" : `<div class="msg">No fields on this device yet: add one below.</div>`}
@@ -422,9 +447,11 @@ class SbDeviceNotesPanel extends HTMLElement {
     });
     body.querySelectorAll("[data-scan]").forEach((b) => b.addEventListener("click", async (e) => {
       e.stopPropagation();
+      const why = this._scanBlocked(); if (why) { this._scanError(b, why); return; }
       const raw = await this._scan(); if (raw) this._quickSave(b.dataset.scan, raw);
     }));
     body.querySelectorAll("[data-escan]").forEach((b) => b.addEventListener("click", async () => {
+      const why = this._scanBlocked(); if (why) { this._scanError(b, why); return; }
       const raw = await this._scan(); if (!raw) return;
       const el = this.shadowRoot.querySelector(`.editor [data-f="${CSS.escape(b.dataset.escan)}"]`);
       if (el) { el.value = raw; this.shadowRoot.querySelector(".editor [data-act=save]")?.focus(); }

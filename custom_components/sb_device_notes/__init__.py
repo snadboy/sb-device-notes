@@ -20,7 +20,7 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
 from . import websocket
-from .const import DOMAIN, PANEL_URL, STATIC_URL
+from .const import DOMAIN, ENTRY_TITLE, OLD_ENTRY_TITLE, PANEL_URL, STATIC_URL
 from .manager import NotesManager
 from .model import FIELD_TYPES, SCOPES, Device, NoteError
 
@@ -195,12 +195,16 @@ async def _async_register_panel(hass: HomeAssistant) -> None:
                 module_url=f"{STATIC_URL}/sb-device-notes.js?v={version}",
                 embed_iframe=False,
                 require_admin=True,
+                # the ⚙ on the integration page opens this page
+                config_panel_domain=DOMAIN,
             )
     except Exception:  # noqa: BLE001
         _LOGGER.exception("Could not register the Device Notes sidebar page")
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: DeviceNotesConfigEntry) -> bool:
+    if entry.title == OLD_ENTRY_TITLE:  # the old default; a title the user chose stays
+        hass.config_entries.async_update_entry(entry, title=ENTRY_TITLE)
     manager = NotesManager(hass)
     await manager.async_load()
     entry.runtime_data = manager

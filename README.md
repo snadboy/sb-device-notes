@@ -6,7 +6,9 @@ re-attached when it comes back, e.g. after a factory reset.
 
 ## The SB Device Notes page
 
-A sidebar page (**SB Device Notes**, admins) lists every device with its notes:
+A page (admins) that lists every device with its notes. Open it from the sidebar
+(**SB Device Notes**), or tap ⚙ on the integration (*Settings → Devices & services → SB Device
+Notes*, the entry titled "Tap ⚙ to view, edit, scan codes").
 
 - **Search** by name, area, model or value (a code matches with or without dashes).
 - **Filter**: *With notes*, *Missing a value* (of the chosen field, or any field the device
@@ -16,25 +18,25 @@ A sidebar page (**SB Device Notes**, admins) lists every device with its notes:
   rejected with the reason.
 - **Quick entry**: under *Missing a value*, each device shows an empty box for what it's
   missing. Type and press Enter: it saves and moves to the next device.
-- **Scan a Matter QR code**: the scan button reads the code with the camera, using the Home
-  Assistant app's own scanner (the one HA uses to add Matter devices), or in a browser that
-  has the BarcodeDetector API (Chrome on Android, Safari) over https. The full QR payload is
-  stored, and the 11-digit code derived from it.
+- **Scan a Matter QR code**: the **Scan** button next to a Matter code box reads the code with
+  the camera, using the Home Assistant app's own scanner (the one HA uses to add Matter devices),
+  or in a browser that has the BarcodeDetector API (Chrome on Android, Safari) over https. Where
+  the camera can't be used, tapping it says why. The full QR payload is stored, and the 11-digit
+  code derived from it.
 - **Fields tab**: create, edit and delete fields.
 
 Requires the [SB UI Kit](https://github.com/snadboy/sb-ui-kit) integration (shared row style).
 
 ## Fields
 
-Create, edit and delete fields under **Settings → Devices & services → SB Device Notes →
-Configure**. Each field has:
+Create, edit and delete fields on the page's **Fields** tab. Each field has:
 
 - **Type:** text (≤255 characters), long text, date, number, yes/no, link, or Matter
   setup code. Each shows on the device page as the matching control (text box, date
   picker, number box, switch). Long text shows read-only (first 255 characters); edit it
   with `sb_device_notes.set`.
 - **Scope:** which devices show it: all devices, devices of chosen integrations, or only
-  devices you add it to (Configure → *Add a field to a device*). A device with a value
+  devices you add it to (*+ Add a field…* in the device's editor). A device with a value
   always shows the field. For an "only devices I add it to" field, clearing the value
   takes it off the device again.
 
