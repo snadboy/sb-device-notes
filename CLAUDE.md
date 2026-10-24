@@ -71,6 +71,13 @@ drop the real codes the early commits had.
   Verified headless (JS served through a Playwright route, no live change): https message,
   fake app with hasBarCodeScanner 0 and 1 (scan → result → close, box filled).
 
+- 2026-10-24: 0.5.2: a mistyped code on the device page / entity dialog (text entity) is rejected
+  with "… Or scan its QR code: open SB Device Notes in the sidebar and tap Scan." (`BadCodeError`,
+  a NoteError subclass, so duplicates etc. get no hint; the page's own errors are unchanged).
+  User chose to keep the entity a text box: HA's device page and more-info take no links or
+  custom dialogs, and 2026 more-info hides attributes under ⋮ → Attributes, so an attribute hint
+  was not worth it. The field NAME is the only always-visible text if more is ever wanted.
+
 ## Next steps
 - [x] MTR labels deleted 2026-10-22 (40 left by then; user OK'd). 4 waiting codes forgotten. 0/8 fixes confirmed by user; their notes cleared.
 - [ ] 18 devices without codes: SB Todos task "Record Matter setup codes for 18 devices" (Homelab, id 1xhmmvcyl57d), one subtask per device.

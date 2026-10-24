@@ -16,9 +16,13 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import SIGNAL_UPDATED, SUMMARY_PREFIX
 from .manager import NotesManager
-from .model import NoteError
+from .model import BadCodeError, NoteError
 
 _SEP = "__"
+
+# HA's device page and entity dialog have no room for our own text; a rejected code's error is
+# the one place a person typing a code here sees, so it points at the scanner.
+_SCAN_HINT = "Or scan its QR code: open SB Device Notes in the sidebar and tap Scan."
 
 
 class NoteEntity(Entity):
@@ -56,7 +60,10 @@ class NoteEntity(Entity):
         try:
             self._manager.book.set_value(device, self._fid, raw)
         except NoteError as err:
-            raise ServiceValidationError(str(err)) from err
+            msg = str(err)
+            if isinstance(err, BadCodeError):
+                msg = f"{msg.rstrip('.')}. {_SCAN_HINT}"
+            raise ServiceValidationError(msg) from err
         self._manager.changed()
 
     async def async_added_to_hass(self) -> None:

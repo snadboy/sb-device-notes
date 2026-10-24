@@ -63,6 +63,10 @@ class NoteError(ValueError):
     """A value or edit the notebook refuses; the message says why."""
 
 
+class BadCodeError(NoteError):
+    """A Matter setup code that can't be read (mistyped, wrong length…)."""
+
+
 def norm_serial(serial: str | None) -> str | None:
     """Upper-cased serial, or None for blanks and placeholders vendors ship."""
     if serial is None:
@@ -139,7 +143,7 @@ def coerce(ftype: str, raw: Any) -> Any:
         try:
             code = parse_code(str(raw))
         except CodeError as err:
-            raise NoteError(str(err)) from None
+            raise BadCodeError(str(err)) from None
         return code.qr or code.manual
     raise NoteError(f"Unknown field type {ftype}")
 

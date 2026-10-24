@@ -27,6 +27,12 @@ Notes*, the entry titled "Tap ⚙ to view, edit, scan codes").
 
 Requires the [SB UI Kit](https://github.com/snadboy/sb-ui-kit) integration (shared row style).
 
+## On the device page
+
+Each field is also an entity on its device (a Matter code is a text box there, with a key icon).
+Home Assistant gives that page no room for anything else, so scanning lives on the SB Device
+Notes page; a code mistyped on the device page is rejected with the reason and a pointer to it.
+
 ## Fields
 
 Create, edit and delete fields on the page's **Fields** tab. Each field has:

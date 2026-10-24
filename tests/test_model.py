@@ -53,6 +53,12 @@ def test_coerce():
     assert c(M.MATTER_CODE, "3497-011-2332") == A
     assert c(M.MATTER_CODE, QR) == QR
     _raises(lambda: c(M.MATTER_CODE, "8298-200-7398"), "")
+    try:
+        c(M.MATTER_CODE, "8298-200-7398")
+    except M.BadCodeError:
+        pass
+    else:
+        raise AssertionError("an unreadable code is a BadCodeError (the entity adds the scan hint)")
 
 
 def test_fields_crud():
@@ -175,6 +181,12 @@ def test_add_waiting_rejects_duplicates():
     n = nb()
     n.add_waiting("x", {"Matter setup code": A})
     _raises(lambda: n.add_waiting("y", {CODE: QR}), "already stored for x")
+    try:
+        n.add_waiting("y", {CODE: QR})
+    except M.BadCodeError:
+        raise AssertionError("a duplicate code is not a BadCodeError")
+    except M.NoteError:
+        pass
     _raises(lambda: n.add_waiting("y", {}), "at least one")
     _raises(lambda: n.add_waiting("y", {"nope": 1}), "No field")
 
