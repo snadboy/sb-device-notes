@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import logging
 from typing import Any
 
 from homeassistant.components.homeassistant import exposed_entities
 from homeassistant.const import STATE_UNAVAILABLE
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers import (
     area_registry as ar,
     device_registry as dr,
@@ -17,7 +18,9 @@ from homeassistant.helpers import (
 )
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.storage import Store
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -28,7 +31,16 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
-from .model import Device, Notebook, assign_keys, new_notebook, norm_serial, plan_restore
+from .model import (
+    Device,
+    Notebook,
+    assign_keys,
+    long_unavailable,
+    new_notebook,
+    norm_serial,
+    plan_restore,
+    unavailable_since,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,7 +53,13 @@ class NotesManager:
         self._store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self.book = Notebook()
         self.devices: dict[str, Device] = {}
+        # Devices holding a record whose entities are all unavailable right now (the page
+        # greys them out), and those down for UNAVAILABLE_GRACE (their notes are offered to
+        # same-model devices in Repairs).
         self.unavailable: set[str] = set()
+        self.long_unavailable: set[str] = set()
+        self._watch_from = dt_util.utcnow()  # outages count from here at the earliest
+        self._recheck: CALLBACK_TYPE | None = None
         self._debouncer = Debouncer(hass, _LOGGER, cooldown=1, immediate=False, function=self.refresh)
 
     async def async_load(self) -> None:
@@ -69,6 +87,7 @@ class NotesManager:
             self.hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, _changed),
             self.hass.bus.async_listen(ar.EVENT_AREA_REGISTRY_UPDATED, _changed),
             self._debouncer.async_shutdown,
+            self._cancel_recheck,
         ]
 
     # ---- devices ---------------------------------------------------------------
@@ -163,10 +182,11 @@ class NotesManager:
             )
         return assign_keys(out)
 
-    def unavailable_devices(self) -> set[str]:
-        """Devices holding a record whose entities are all unavailable (reset, unplugged)."""
+    def unavailable_devices(self) -> dict[str, datetime]:
+        """Devices holding a record whose entities are all unavailable (reset, unplugged,
+        or just a sleepy device dropping out), and since when."""
         ent_reg = er.async_get(self.hass)
-        out = set()
+        out = {}
         for rec in self.book.records.values():
             if not (device_id := rec["device_id"]):
                 continue
@@ -175,9 +195,34 @@ class NotesManager:
                 for e in er.async_entries_for_device(ent_reg, device_id)
                 if e.platform != DOMAIN
             ]
-            if states and all(s is None or s.state == STATE_UNAVAILABLE for s in states):
-                out.add(device_id)
+            since = unavailable_since(
+                (None if s is None else (s.state == STATE_UNAVAILABLE, s.last_changed) for s in states),
+                self._watch_from,
+            )
+            if since is not None:
+                out[device_id] = since
         return out
+
+    @callback
+    def _cancel_recheck(self) -> None:
+        if self._recheck is not None:
+            self._recheck()
+            self._recheck = None
+
+    @callback
+    def _schedule_recheck(self, when: datetime | None) -> None:
+        """Refresh when the next unavailable device's grace runs out: nothing else would
+        (refreshes follow registry changes, not states)."""
+        self._cancel_recheck()
+        if when is None:
+            return
+
+        @callback
+        def _due(_now: datetime) -> None:
+            self._recheck = None
+            self._debouncer.async_schedule_call()
+
+        self._recheck = async_track_point_in_utc_time(self.hass, _due, when)
 
     def _holder(self, entity_id: str) -> str | None:
         if er.async_get(self.hass).async_get(entity_id) or self.hass.states.get(entity_id):
@@ -275,8 +320,11 @@ class NotesManager:
 
     def _sync_issues(self) -> None:
         issue_reg = ir.async_get(self.hass)
-        unavailable = self.unavailable_devices()
-        self.unavailable = unavailable
+        since = self.unavailable_devices()
+        self.unavailable = set(since)
+        unavailable, next_due = long_unavailable(since, dt_util.utcnow())
+        self.long_unavailable = unavailable
+        self._schedule_recheck(next_due)
         want = {
             f"{ISSUE_PREFIX}{d.id}": d
             for d in self.book.unmatched(list(self.devices.values()), unavailable)

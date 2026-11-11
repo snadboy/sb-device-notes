@@ -84,6 +84,8 @@ defaults. When all of a device's entities reappear with new unique IDs, Repairs 
 If the device is paired again before the old one is deleted, the old one shows as
 *unavailable, still in HA* in the pick list, and entity IDs it still holds are listed as
 "still in use": delete the old device and submit again (or run `sb_device_notes.restore`).
+The old device's notes are offered only once it has been unavailable for 30 minutes, so a
+sleepy device dropping out for a few minutes (or HA starting up) raises no Repairs prompt.
 
 ## Lists
 

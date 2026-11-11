@@ -78,6 +78,13 @@ drop the real codes the early commits had.
   custom dialogs, and 2026 more-info hides attributes under ⋮ → Attributes, so an attribute hint
   was not worth it. The field NAME is the only always-visible text if more is ever wanted.
 
+- 2026-11-11: 0.5.3 (PR, not deployed): no more "unmatched device" repairs while a sleepy Thread
+  device is briefly unavailable. Seen: a BILRESA button down 7 min after an HA restart and 3 min
+  later; both note-less BILRESAs got repairs that cleared themselves. An old device's record is now
+  offered only after it has been unavailable for `UNAVAILABLE_GRACE` (30 min), timed from the
+  entities' `last_changed` but never before the manager started (so startup counts from then).
+  Refreshes follow registry events, not states, so a timer refreshes when the next grace runs out.
+
 ## Next steps
 - [x] MTR labels deleted 2026-10-22 (40 left by then; user OK'd). 4 waiting codes forgotten. 0/8 fixes confirmed by user; their notes cleared.
 - [ ] 18 devices without codes: SB Todos task "Record Matter setup codes for 18 devices" (Homelab, id 1xhmmvcyl57d), one subtask per device.
@@ -112,6 +119,9 @@ drop the real codes the early commits had.
 - Matching a waiting record: device_id exists → unique serial → unique connection → same
   Matter code entered (moves/merges the whole record). Duplicate serials/connections across
   current devices are ignored.
-- Repair issue `unmatched_<device_id>`: device with no record AND a waiting record with the
-  same manufacturer+model; "new device" answer remembered in `dismissed`.
+- Repair issue `unmatched_<device_id>`: device with no record AND a same manufacturer+model
+  record that is waiting or on a device unavailable for `UNAVAILABLE_GRACE` (30 min;
+  `manager.long_unavailable`; `manager.unavailable` is the instant set the page greys out);
+  "new device" answer remembered in `dismissed`. Not persisted: after an HA restart or reload a
+  real re-pair's prompt comes back 30 min later.
 - Type changes only among text / long text / link, and only if every value fits.
