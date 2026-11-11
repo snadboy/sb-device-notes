@@ -1,8 +1,9 @@
 """Repair flows.
 
 unmatched_<device_id>: a device with no notes while a same-model device left some, either
-deleted (waiting) or still present but unavailable (paired again before the old one was
-deleted). Pick the notes; then, if they came from another HA device, offer the restore.
+deleted (waiting) or still present but unavailable for UNAVAILABLE_GRACE (paired again
+before the old one was deleted). Pick the notes; then, if they came from another HA
+device, offer the restore.
 
 restore_<record_id>: notes moved to a new HA device (picked here, matched by serial or
 MAC, or a Matter code entered on it): put the old device's name, area, entity IDs and
@@ -94,7 +95,7 @@ class NotesRepairFlow(RepairsFlow):
         if device is None:
             return self.async_abort(reason="device_gone")
         book = self._manager.book
-        unavailable = self._manager.unavailable
+        unavailable = self._manager.long_unavailable
         errors: dict[str, str] = {}
 
         # The repairs manager opens the flow with an empty dict, not None.
