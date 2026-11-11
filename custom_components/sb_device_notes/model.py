@@ -14,6 +14,9 @@ Matching a waiting record to a device, strongest first:
 3. the same Matter setup code is entered on a device (that code identifies the physical
    device, so the whole record moves there).
 Devices with neither (Govee, Shelly) get a repair issue offering same-model records.
+A record still on an old device is offered too once that device has been unavailable for
+UNAVAILABLE_GRACE (paired again before the old one was deleted); shorter outages (a
+sleepy Thread device, HA starting up) offer nothing.
 
 A field shows on a device when the device is in the field's scope, or the device has a
 value for it, or the user added it to that device ("picked").
@@ -24,7 +27,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 import re
 from typing import Any
 import uuid
@@ -53,6 +56,11 @@ MISSING = "missing"
 
 MAX_TEXT = 255  # an HA entity state
 MAX_LONG_TEXT = 10000
+
+# How long a device must stay unavailable before its notes are offered to another device.
+# Sleepy Thread devices drop out for minutes at a time (7 minutes after an HA restart, seen
+# 2026-11-11), and a re-paired device's old copy stays unavailable for good.
+UNAVAILABLE_GRACE = timedelta(minutes=30)
 
 _JUNK_SERIALS = {"NONE", "UNKNOWN", "TEST_SN", "N/A", "NA", "SERIAL", "SN"}
 _TRUE = {"true", "on", "yes", "1"}
@@ -98,6 +106,32 @@ class Device:
 
 def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
+
+
+def unavailable_since(states: Iterable[tuple[bool, datetime] | None], floor: datetime) -> datetime | None:
+    """When a device went unavailable, from its entities' (unavailable?, last_changed), with
+    None for an entity that has no state yet. The latest change, but never before `floor`
+    (when we started watching: an HA restart starts the clock again). None if any entity is
+    available, or there are none."""
+    since = None
+    for s in states:
+        since = since or floor
+        if s is None:
+            continue
+        down, changed = s
+        if not down:
+            return None
+        since = max(since, changed)
+    return since
+
+
+def long_unavailable(
+    since: dict[str, datetime], now: datetime, grace: timedelta = UNAVAILABLE_GRACE
+) -> tuple[set[str], datetime | None]:
+    """The devices unavailable for at least `grace`, and when the next of the others will
+    be (None if there are no others)."""
+    done = {d for d, t in since.items() if now - t >= grace}
+    return done, min((t + grace for d, t in since.items() if d not in done), default=None)
 
 
 # ---- values ----------------------------------------------------------------------
@@ -599,8 +633,9 @@ class Notebook:
         self, device: Device, unavailable: frozenset[str] | set[str] = frozenset()
     ) -> list[tuple[str, dict[str, Any]]]:
         """Records that could belong to `device`: same maker and model, and either waiting
-        or still on an old device that is unavailable (paired again before the old one was
-        deleted). A device reporting neither maker nor model matches nothing."""
+        or still on an old device in `unavailable` (paired again before the old one was
+        deleted; the caller passes only devices down for UNAVAILABLE_GRACE). A device
+        reporting neither maker nor model matches nothing."""
         if not (device.manufacturer and device.model):
             return []
         return [

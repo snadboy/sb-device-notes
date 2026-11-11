@@ -292,6 +292,45 @@ def test_unavailable_old_device_is_a_candidate():
     assert n.for_device("d8")[0] == rid
 
 
+T0 = M.datetime(2026, 11, 11, 6, 0, tzinfo=M.UTC)  # HA (re)started; we start watching
+MIN = M.timedelta(minutes=1)
+
+
+def test_unavailable_since():
+    since = M.unavailable_since
+    assert since([], T0) is None  # no entities: nothing to say
+    assert since([(True, T0 + MIN), (False, T0 + 2 * MIN)], T0) is None  # one entity is up
+    assert since([(True, T0 + 3 * MIN), (True, T0 + 5 * MIN)], T0) == T0 + 5 * MIN  # the last to drop
+    assert since([None, None], T0) == T0  # no states yet (HA starting): from when we started
+    assert since([(True, T0 - 600 * MIN), None], T0) == T0  # an old timestamp doesn't predate a restart
+
+
+def test_brief_outage_offers_nothing():
+    """A sleepy Thread button drops out for 7 minutes after a restart, and 3 more later: its
+    same-model, note-less siblings get no repair. Down for good (re-paired), they do."""
+    n = nb()
+    button = M.Device("b1", "Desk Button", "Office", "IKEA", "BILRESA", None, integration="matter")
+    left = M.Device("b2", "Bedside Button A", None, "IKEA", "BILRESA", None, integration="matter")
+    right = M.Device("b3", "Bedside Button B", None, "IKEA", "BILRESA", None, integration="matter")
+    n.set_value(button, "notes", "x")
+    devices = [button, left, right]
+
+    def unmatched(down_since, now):
+        gone, next_due = M.long_unavailable(down_since, now)
+        return [d.id for d in n.unmatched(devices, gone)], next_due
+
+    # HA starts with the button unavailable; it comes back after 7 minutes.
+    assert unmatched({"b1": T0}, T0 + 7 * MIN) == ([], T0 + 30 * MIN)
+    # Later it drops for 3 minutes: the clock starts at the drop, not at startup.
+    later = T0 + 120 * MIN
+    assert unmatched({"b1": later}, later + 3 * MIN) == ([], later + 30 * MIN)
+    # Never comes back (re-paired as one of the others): offered once the grace is up.
+    assert unmatched({"b1": later}, later + 30 * MIN) == (["b2", "b3"], None)
+    # Two old devices down: the recheck is due at the earlier one's deadline.
+    assert M.long_unavailable({"x": T0, "y": T0 + 10 * MIN}, T0 + 5 * MIN) == (set(), T0 + 30 * MIN)
+    assert M.long_unavailable({"x": T0, "y": T0 + 10 * MIN}, T0 + 31 * MIN) == ({"x"}, T0 + 40 * MIN)
+
+
 def test_same_device_repaired_keeps_snapshot():
     """HA revives a deleted device by serial (same device ID) but its entities are new."""
     n = nb()
