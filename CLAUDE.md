@@ -78,12 +78,15 @@ drop the real codes the early commits had.
   custom dialogs, and 2026 more-info hides attributes under ⋮ → Attributes, so an attribute hint
   was not worth it. The field NAME is the only always-visible text if more is ever wanted.
 
-- 2026-11-11: 0.5.3 (PR, not deployed): no more "unmatched device" repairs while a sleepy Thread
+- 2026-11-11: 0.5.3 (PR #1; released + installed via Marketplace and full restart 2026-11-18): no more "unmatched device" repairs while a sleepy Thread
   device is briefly unavailable. Seen: a BILRESA button down 7 min after an HA restart and 3 min
   later; both note-less BILRESAs got repairs that cleared themselves. An old device's record is now
   offered only after it has been unavailable for `UNAVAILABLE_GRACE` (30 min), timed from the
   entities' `last_changed` but never before the manager started (so startup counts from then).
   Refreshes follow registry events, not states, so a timer refreshes when the next grace runs out.
+  Gotcha: HA 2026.x replaced HACS with core `marketplace`; its update check runs every 48 h, so after
+  a release run websocket `marketplace/repository/refresh` (repository 1429873358), then `update.install`
+  on `update.sb_device_notes_update`.
 
 ## Next steps
 - [x] MTR labels deleted 2026-10-22 (40 left by then; user OK'd). 4 waiting codes forgotten. 0/8 fixes confirmed by user; their notes cleared.
